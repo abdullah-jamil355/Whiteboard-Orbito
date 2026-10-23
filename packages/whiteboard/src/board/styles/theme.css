@@ -1,0 +1,91 @@
+:root[data-theme="dark"] .wb-sidebar,
+:root[data-theme="dark"] .wb-header,
+:root[data-theme="dark"] .wb-toolbar,
+:root[data-theme="dark"] .wb-available-sessions,
+:root[data-theme="dark"] .wb-live-presence,
+:root[data-theme="dark"] .wb-invitations {
+  background-color: var(--wb-surface);
+  color: var(--foreground);
+}
+
+:root[data-theme="dark"] .wb-sidebar { border-color: var(--border); }
+:root[data-theme="dark"] .wb-sidebar-link { color: var(--wb-foreground-muted); }
+:root[data-theme="dark"] .wb-sidebar-link-active {
+  background: #263a52;
+  color: #cfe4ff;
+}
+
+:root[data-theme="dark"] .wb-header,
+:root[data-theme="dark"] .wb-toolbar { border-color: var(--border); }
+:root[data-theme="dark"] .wb-account-chip,
+:root[data-theme="dark"] .wb-account-email { color: var(--wb-foreground-muted); }
+:root[data-theme="dark"] .wb-board-title:hover,
+:root[data-theme="dark"] .wb-board-title:focus { background: var(--wb-surface-raised); }
+:root[data-theme="dark"] .wb-header-action-button {
+  border-color: var(--border);
+  background: var(--wb-surface-muted);
+  color: var(--foreground);
+}
+:root[data-theme="dark"] .wb-header-action-button:hover { background: var(--wb-surface-raised); }
+
+:root[data-theme="dark"] .wb-available-sessions,
+:root[data-theme="dark"] .wb-live-presence,
+:root[data-theme="dark"] .wb-invitations {
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .wb-live-participant {
+  background: var(--wb-surface-muted);
+  color: var(--foreground);
+}
+:root[data-theme="dark"] .wb-participant-role { color: var(--muted-foreground); }
+
+:root[data-theme="dark"] .wb-drawing-tools > button { color: var(--wb-foreground-muted); }
+:root[data-theme="dark"] .wb-drawing-tools > button[aria-pressed="true"] { color: #fff; }
+:root[data-theme="dark"] .wb-actions > button:not([aria-label="Undo action"]):not([aria-label="Redo action"]) {
+  background: var(--wb-surface-muted);
+  color: var(--foreground);
+}
+:root[data-theme="dark"] .wb-text-size-select,
+:root[data-theme="dark"] .wb-line-weight-select {
+  border-color: var(--border);
+  background: var(--wb-surface-raised);
+  color: var(--foreground);
+}
+
+:root[data-theme="dark"] .wb-camera-controls {
+  border-color: var(--border);
+  background: rgb(25 33 43 / 96%);
+}
+:root[data-theme="dark"] .wb-camera-controls > span { color: var(--wb-foreground-muted); }
+:root[data-theme="dark"] .wb-empty-illustration { background: linear-gradient(145deg, #243747, #302a43); }
+:root[data-theme="dark"] .wb-canvas-empty strong { color: #24324a; }
+
+:root[data-theme="dark"] .wb-session-badge {
+  border-color: #315d42;
+  background: #1e3327;
+  color: #a9dfb8;
+}
+
+:root[data-theme="dark"] .wb-file-feedback-error {
+  background: #3a2526;
+  color: #ffaaa5;
+}
+:root[data-theme="dark"] .wb-file-feedback-success {
+  background: #203529;
+  color: #a9dfb8;
+}
+
+:root[data-theme="dark"] .wb-toolbar-popover-item {
+  border-color: var(--border);
+  color: var(--foreground);
+}
+:root[data-theme="dark"] .wb-toolbar-popover-item:hover {
+  background: var(--wb-surface-muted, #1e293b);
+  border-color: #38bdf8;
+}
+:root[data-theme="dark"] .wb-toolbar-popover-item[aria-pressed="true"] {
+  background: #1e3a5f;
+  border-color: #38bdf8;
+  color: #38bdf8;
+}

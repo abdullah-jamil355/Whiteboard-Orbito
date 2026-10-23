@@ -3,5 +3,10 @@ export type {
   ApiErrorCode,
   ApiErrorDetails,
   ApiErrorResponse,
-  ApiHealthResponse
+  ApiHealthResponse,
+  WhiteboardEditChange,
+  WhiteboardEditCommand,
+  WhiteboardHistoryState,
+  WhiteboardRealtimeClientMessage,
+  WhiteboardRealtimeServerMessage
 } from "./api/index.js";

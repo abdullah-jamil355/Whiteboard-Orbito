@@ -1,0 +1,109 @@
+@media (max-width: 640px) {
+  .wb-shape-library-menu { grid-template-columns: 1fr; }
+  .wb-sidebar {
+    position: static;
+    align-self: stretch;
+    width: 100%;
+    height: auto;
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .wb-sidebar-brand { min-height: 38px; gap: 7px; padding: 0; }
+  .wb-sidebar-brand-name, .wb-sidebar-label { visibility: visible; opacity: 1; max-width: none; overflow: visible; }
+  .wb-sidebar-brand .wb-brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
+  .wb-sidebar-brand strong { font-size: 13px; }
+  .wb-sidebar-brand small, .wb-sidebar::after { display: none; }
+  .wb-sidebar-nav { display: flex; gap: 3px; margin: 0; }
+  .wb-sidebar-link { width: auto; height: 36px; gap: 6px; padding-inline: 9px; font-size: 11px; }
+  .wb-sidebar-link svg { width: 15px; height: 15px; }
+  .wb-app-layout { display: flex; flex-direction: column; }
+
+  .wb-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .wb-header-account { gap: 8px; }
+  .wb-account-email { display: none; }
+  .wb-local-state { max-width: 48vw; overflow: hidden; font-size: 10px; text-overflow: ellipsis; }
+
+  .wb-board-title {
+    order: 3;
+    width: 100%;
+  }
+
+  .wb-toolbar {
+    align-items: center;
+    gap: 6px;
+    overflow-x: visible;
+    padding: 7px 10px;
+  }
+
+  .wb-tool-group:not(.wb-actions) {
+    flex: 0 1 auto;
+  }
+
+  .wb-tool-group:first-child {
+    width: 100%;
+    overflow-x: auto;
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  .wb-drawing-tools > button { width: 44px; height: 40px; }
+
+  .wb-actions {
+    flex: 0 1 auto;
+    max-width: 100%;
+    margin-left: auto;
+    order: 5;
+    overflow-x: auto;
+  }
+
+  .wb-pen-controls,
+  .wb-shape-controls,
+  .wb-text-color-controls,
+  .wb-text-controls {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    padding-left: 4px;
+    border-left: 0;
+  }
+
+  .wb-pen-controls {
+    padding-left: 4px;
+  }
+
+  .wb-stage {
+    min-height: 0;
+    padding: 8px;
+  }
+
+  .wb-file-feedback {
+    margin-inline: 16px;
+  }
+
+  .wb-session-actions {
+    flex: 1 1 100%;
+  }
+
+  .wb-session-badge {
+    max-width: 100%;
+  }
+
+  .wb-canvas {
+    min-height: max(440px, calc(100vh - 260px));
+  }
+
+  .wb-template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

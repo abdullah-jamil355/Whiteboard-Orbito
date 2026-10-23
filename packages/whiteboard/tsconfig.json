@@ -1,0 +1,12 @@
+{
+  "extends": "@workspace/tsconfig/node.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "jsx": "react-jsx",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}

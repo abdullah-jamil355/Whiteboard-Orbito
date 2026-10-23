@@ -1,0 +1,83 @@
+@import "@workspace/ui/styles.css";
+@import "@workspace/whiteboard/styles.css";
+@import "./workspace-polish.css";
+
+@source "../**/*.{ts,tsx}";
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../packages/whiteboard/src/**/*.{ts,tsx}";
+
+:root {
+  color-scheme: light;
+  --background: #eef2f7;
+  --foreground: #17263d;
+  --primary: #2864e8;
+  --primary-foreground: #ffffff;
+  --secondary: #edf2fa;
+  --secondary-foreground: #253a59;
+  --accent: #e8efff;
+  --accent-foreground: #244caa;
+  --muted: #f2f5f9;
+  --muted-foreground: #65758b;
+  --border: #d8e1ec;
+  --input: #cbd6e4;
+  --ring: #7596ef;
+  --wb-grid-line: #e5ebf3;
+  --wb-canvas-background: #ffffff;
+  --wb-default-ink: #000000;
+  --wb-surface: #ffffff;
+  --wb-surface-raised: #f8faff;
+  --wb-surface-muted: #edf2fa;
+  --wb-foreground-muted: #50627c;
+  --radius: 0.75rem;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0d1420;
+  --foreground: #eaf1fb;
+  --primary: #5894ff;
+  --primary-foreground: #ffffff;
+  --secondary: #202d42;
+  --secondary-foreground: #e5edf9;
+  --accent: #243b5e;
+  --accent-foreground: #dceaff;
+  --muted: #1a2638;
+  --muted-foreground: #a7b5c9;
+  --border: #2a3a51;
+  --input: #344862;
+  --ring: #78a8ff;
+  --wb-grid-line: #2a394b;
+  --wb-canvas-background: #17212e;
+  --wb-default-ink: #ffffff;
+  --wb-surface: #182332;
+  --wb-surface-raised: #1d2b3e;
+  --wb-surface-muted: #25364c;
+  --wb-foreground-muted: #afbed2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  outline-offset: 3px;
+}
+

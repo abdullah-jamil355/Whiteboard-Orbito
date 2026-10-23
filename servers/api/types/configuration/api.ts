@@ -7,5 +7,15 @@ export type ApiConfig = Readonly<{
   port: number;
   webOrigin: string;
   mongodbUri?: string;
+  realtimeHost?: string;
+  realtimePort?: number;
+  identityRateLimitKey?: string;
+  apiTrustProxyHops?: number;
+  gmailUser?: string;
+  gmailAppPassword?: string;
+  googleOAuthClientId?: string;
+  googleOAuthClientSecret?: string;
+  googleOAuthRedirectUri?: string;
+  googleTokenEncryptionKey?: string;
   logLevel: LogLevel;
 }>;

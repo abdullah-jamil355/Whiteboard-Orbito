@@ -1,0 +1,14 @@
+{
+  "name": "whiteboard-library",
+  "type": "package",
+  "description": "Reusable Whiteboard board model, editing operations, and React components.",
+  "internalDependencies": ["eslint-config", "tsconfig", "ui"],
+  "externalDependencies": ["lucide-react", "react", "react-dom"],
+  "capabilities": ["whiteboard-editor", "board-model", "react-components"],
+  "tasks": {
+    "build": { "command": "pnpm run build", "outputs": ["dist"], "cache": true },
+    "test": { "command": "pnpm test", "cache": false },
+    "lint": { "command": "pnpm run lint", "cache": false },
+    "typecheck": { "command": "pnpm run typecheck", "cache": false }
+  }
+}

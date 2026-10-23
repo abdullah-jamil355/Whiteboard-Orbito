@@ -131,8 +131,8 @@ const readPnpmWorkspacePatterns = (source) => {
 };
 
 const readPnpmAllowedBuilds = (source) => {
-  const allowBuildsBlock = source.match(/^allowBuilds:\s*\r?\n((?:\s{2,}.*(?:\r?\n|$))*)/m)?.[1] ?? "";
-  return [...allowBuildsBlock.matchAll(/^\s{2}([^:\r\n]+):\s*true\s*$/gm)].map((match) => match[1]);
+  const allowBuildsBlock = source.match(/^allowBuilds:[ \t]*\r?\n((?:[ \t]{2,}.*(?:\r?\n|$))*)/m)?.[1] ?? "";
+  return [...allowBuildsBlock.matchAll(/^[ \t]{2}([^:\r\n]+):[ \t]*true[ \t]*$/gm)].map((match) => match[1].trim());
 };
 
 export const checkPackageManagerArchitecture = async (workspace) => {

@@ -8,5 +8,5 @@
     "declaration": true,
     "declarationMap": true
   },
-  "exclude": ["dist", "node_modules", "tests"]
+  "exclude": ["dist", "node_modules", "**/tests/**"]
 }

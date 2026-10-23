@@ -36,7 +36,7 @@ test("lint-staged selects staged supported files and propagates command failures
   context.after(() => rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const gitEnv = {
     ...process.env,
-    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    GIT_CONFIG_GLOBAL: path.join(root, "global.gitconfig"),
     GIT_CONFIG_NOSYSTEM: "1",
     HOME: root,
     XDG_CONFIG_HOME: root

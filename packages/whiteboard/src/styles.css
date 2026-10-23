@@ -1,0 +1,6 @@
+@import "./board/styles/layout.css";
+@import "./board/styles/workspace.css";
+@import "./board/styles/dialogs.css";
+@import "./board/styles/canvas.css";
+@import "./board/styles/responsive.css";
+@import "./board/styles/theme.css";

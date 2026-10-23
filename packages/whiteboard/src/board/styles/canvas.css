@@ -1,0 +1,282 @@
+.wb-stage {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  padding: 12px 18px 16px;
+}
+
+.wb-canvas {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: max(500px, calc(100vh - 205px));
+  overflow: hidden;
+  border: 1px solid #e2e9f2;
+  border-radius: 16px;
+  background-color: #fff;
+  background-image: none;
+  box-shadow: 0 8px 28px rgb(56 79 114 / 8%);
+}
+
+.wb-camera-controls {
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid #e1e8f1;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 2px 8px rgb(56 79 114 / 12%);
+}
+
+.wb-camera-controls > span {
+  min-width: 42px;
+  color: #53647e;
+  font-size: 12px;
+  text-align: center;
+}
+
+.wb-canvas-empty {
+  z-index: 0;
+  align-self: center;
+  justify-self: center;
+  padding: 32px;
+  color: #71809a;
+  pointer-events: none;
+  text-align: center;
+}
+
+.wb-empty-illustration {
+  display: grid;
+  width: 84px;
+  height: 72px;
+  place-items: center;
+  margin: 0 auto 16px;
+  border: 3px solid #8bc4ec;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #eef8ff, #f8f2ff);
+  color: #3293bd;
+  transform: rotate(-5deg);
+}
+
+.wb-empty-illustration svg { filter: drop-shadow(3px 3px 0 #f3cf85); }
+
+.wb-canvas-empty strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #24324a;
+  font-size: 22px;
+}
+
+.wb-canvas-empty p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.wb-drawing-surface {
+  position: absolute;
+  z-index: 1;
+  top: 14px;
+  left: 21px;
+  width: calc(100% - 21px);
+  height: calc(100% - 14px);
+  overflow: hidden;
+  cursor: default;
+  touch-action: none;
+}
+
+.wb-rulers {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+}
+
+.wb-ruler-horizontal {
+  position: absolute;
+  top: 0;
+  left: 21px;
+  width: calc(100% - 21px);
+  height: 14px;
+  overflow: hidden;
+  fill: #f5f7fa;
+  stroke: #cbd4df;
+  stroke-width: 0.75;
+}
+
+.wb-ruler-horizontal text {
+  fill: #586579;
+  stroke: none;
+  font: 10px Arial, sans-serif;
+}
+
+.wb-ruler-vertical {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  width: 21px;
+  height: calc(100% - 14px);
+  overflow: hidden;
+  fill: #f5f7fa;
+  stroke: #cbd4df;
+  stroke-width: 0.75;
+}
+
+.wb-ruler-vertical text {
+  fill: #586579;
+  stroke: none;
+  font: 10px Arial, sans-serif;
+}
+
+.wb-ruler-corner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 21px;
+  height: 14px;
+  border-right: 1px solid #cbd4df;
+  border-bottom: 1px solid #cbd4df;
+  background: #f5f7fa;
+}
+
+.wb-drawing-surface-pan-ready {
+  cursor: grab;
+}
+
+.wb-drawing-surface-pan-ready:active {
+  cursor: grabbing;
+}
+
+.wb-drawing-surface-pen {
+  cursor: crosshair;
+}
+
+.wb-drawing-surface-eraser {
+  cursor: crosshair;
+}
+
+.wb-drawing-surface-rectangle,
+.wb-drawing-surface-circle,
+.wb-drawing-surface-diamond,
+.wb-drawing-surface-text {
+  cursor: crosshair;
+}
+
+.wb-text-object {
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.wb-text-display,
+.wb-text-editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 0;
+  padding: 4px;
+  color: #26344b;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.wb-text-editor {
+  resize: none;
+  border: 1px solid #7194b5;
+  border-radius: 3px;
+  outline: 2px solid rgb(49 95 139 / 16%);
+  background: transparent;
+}
+
+.wb-shape-selection {
+  pointer-events: none;
+}
+
+.wb-object-selection-outline {
+  color: #d9e5f2;
+  stroke: currentColor;
+  stroke-dasharray: 3 3;
+  stroke-width: 1.5px;
+}
+
+.wb-object-resize-preview {
+  color: #8db8df;
+  stroke: currentColor;
+  stroke-dasharray: 4 3;
+  stroke-width: 1.5px;
+}
+
+.wb-resize-handle {
+  fill: #d9e5f2;
+  stroke: #78a9d5;
+  stroke-width: 1.5px;
+  pointer-events: all;
+  vector-effect: non-scaling-stroke;
+}
+
+.wb-line-endpoint-handle {
+  cursor: move;
+}
+.wb-waypoint-handle {
+  fill: #ffffff;
+  stroke: #315f8b;
+  stroke-width: 2px;
+  cursor: grab;
+}
+
+.wb-waypoint-handle:hover {
+  fill: #315f8b;
+  cursor: grabbing;
+}
+
+.wb-waypoint-midpoint-handle {
+  fill: #e8edf4;
+  stroke: #78a9d5;
+  stroke-width: 1.5px;
+  stroke-dasharray: 2 2;
+  opacity: 0.85;
+  cursor: crosshair;
+}
+
+.wb-waypoint-midpoint-handle:hover {
+  opacity: 1;
+  fill: #315f8b;
+}
+
+
+.wb-keyboard-focus-ring {
+  stroke: #facc15;
+  stroke-dasharray: 3 3;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.wb-resize-handle:nth-of-type(2) {
+  cursor: nwse-resize;
+}
+
+.wb-resize-handle:nth-of-type(3) {
+  cursor: nesw-resize;
+}
+
+.wb-resize-handle:nth-of-type(4) {
+  cursor: nesw-resize;
+}
+
+.wb-resize-handle:nth-of-type(5) {
+  cursor: nwse-resize;
+}
+
+.wb-footer {
+  padding: 0 28px 18px;
+  color: #8491a4;
+  font-size: 11px;
+}
+

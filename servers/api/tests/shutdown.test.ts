@@ -24,3 +24,19 @@ void test("graceful shutdown stops HTTP traffic before disconnecting persistence
     "database:disconnect"
   ]);
 });
+
+void test("graceful shutdown closes realtime before HTTP and MongoDB", async (): Promise<void> => {
+  const calls: string[] = [];
+  const logger: Logger = {
+    info: (): void => undefined,
+    warn: (): void => undefined,
+    error: (): void => undefined
+  };
+  const shutdown = createShutdown({
+    logger,
+    server: { stop: (): Promise<void> => { calls.push("server"); return Promise.resolve(); } },
+    database: { disconnect: (): Promise<void> => { calls.push("database"); return Promise.resolve(); } }
+  });
+  await shutdown("SIGTERM", { stop: (): Promise<void> => { calls.push("realtime"); return Promise.resolve(); } });
+  assert.deepEqual(calls, ["realtime", "server", "database"]);
+});

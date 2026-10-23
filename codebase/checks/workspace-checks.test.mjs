@@ -80,6 +80,40 @@ test("rejects stale npm workspace metadata and non-workspace internal dependenci
   assert.ok(issues.some((issue) => issue.message.includes("allowBuilds")));
 });
 
+test("accepts pnpm build approvals that match the architecture policy", async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "repo-allowed-builds-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, "package.json"), JSON.stringify({ packageManager: "pnpm@11.19.0" }), "utf8");
+  await writeFile(path.join(root, "pnpm-workspace.yaml"), [
+    "packages:",
+    "  - \"apps/*\"",
+    "allowBuilds:",
+    "  esbuild: true",
+    "  unrs-resolver: true",
+    ""
+  ].join("\n"), "utf8");
+  await writeFile(path.join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n", "utf8");
+
+  const issues = await checkPackageManagerArchitecture({
+    root,
+    architecture: {
+      packageManagement: {
+        manager: "pnpm",
+        packageManagerVersion: "11.19.0",
+        workspaceFile: "pnpm-workspace.yaml",
+        workspacePatterns: ["apps/*"],
+        allowedBuildDependencies: ["esbuild", "unrs-resolver"],
+        lockfile: "pnpm-lock.yaml",
+        forbiddenLockfiles: [],
+        internalDependencyProtocol: "workspace:"
+      }
+    },
+    projects: []
+  });
+
+  assert.deepEqual(issues, []);
+});
+
 test("reports package-defined workspace units without a project manifest", async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "repo-missing-manifest-"));
   context.after(() => rm(root, { recursive: true, force: true }));
