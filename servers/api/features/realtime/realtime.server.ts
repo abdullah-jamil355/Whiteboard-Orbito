@@ -22,7 +22,7 @@ const heartbeatMs = 30_000;
 const commandWindowMs = 60_000;
 const maximumCommandsPerWindow = 1_200;
 const maximumAwarenessUpdatesPerWindow = 2_400;
-const maximumAwarenessClientStatesPerUpdate = 1;
+const maximumAwarenessClientStatesPerUpdate = 30;
 const actionIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const readActionId = (value: unknown): string | undefined => {
   if (typeof value === "object" && value !== null && "actionId" in value && typeof value.actionId === "string" && actionIdPattern.test(value.actionId)) return value.actionId;

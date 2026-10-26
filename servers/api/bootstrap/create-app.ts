@@ -54,9 +54,29 @@ export const createApp = ({ config, logger, closeSessionConnections, closeMember
       } : {})
     })
     : null;
-  const invitationMailer = identityService
-    ? createInvitationMailer((ownerIdentityId, email) => identityService.sendAsGoogleMail(ownerIdentityId, email))
-    : unavailableInvitationMailer;
+  const invitationMailer = identityService && config.googleOAuthClientId
+    ? createInvitationMailer(async (ownerIdentityId, email) => {
+      try {
+        await identityService.sendAsGoogleMail(ownerIdentityId, email);
+      } catch (error) {
+        if (config.environment === "development") {
+          const urlMatch = email.html.match(/href="([^"]+)"/);
+          const foundUrl = urlMatch?.[1];
+          await mailbox.invitationMailer.sendInvitation({
+            ownerIdentityId,
+            recipient: email.recipient,
+            invitationUrl: typeof foundUrl === "string" ? foundUrl : "",
+            sessionTitle: email.subject.replace("You're invited to ", ""),
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+          });
+          return;
+        }
+        throw error;
+      }
+    })
+    : config.environment === "development"
+      ? mailbox.invitationMailer
+      : unavailableInvitationMailer;
   if (identityService) app.use(createApiRateLimitMiddleware({ reserve: identityService.reserveHttpRequestRateLimit }));
   app.use(express.json({ limit: apiRuntime.jsonBodyLimit }));
   const invitationRepository = config.mongodbUri ? createInvitationRepository() : null;
