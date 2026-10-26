@@ -289,6 +289,15 @@ pnpm.cmd --filter api test
 # Run Whiteboard engine tests (160 tests)
 pnpm.cmd --filter @workspace/whiteboard test
 
+# Run Whiteboard app tests (11 tests)
+pnpm.cmd --filter @workspace/whiteboard-app test
+
+# Run End-to-End Live Collaboration Verification (Simulator)
+node apps/whiteboard/scripts/test-live-collaboration.mjs
+
+# Run Multi-User Heavy Concurrency & Stress Benchmark (11 users, 33 writes)
+node apps/whiteboard/scripts/stress-test-collaboration.mjs
+
 # Run full monorepo build across all packages and apps
 node codebase/cli/repo.mjs run build
 

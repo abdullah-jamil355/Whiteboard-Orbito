@@ -121,9 +121,51 @@ To run the live collaboration benchmark locally:
    node apps/whiteboard/scripts/test-live-collaboration.mjs
    ```
 
-3. **Run repository policy and unit suites:**
+3. **Run Heavy Stress & Concurrency Benchmark (Option 3):**
+   ```bash
+   node apps/whiteboard/scripts/stress-test-collaboration.mjs
+   ```
+
+4. **Run repository policy and unit suites:**
    ```bash
    node codebase/cli/repo.mjs check
    pnpm run typecheck
    pnpm test
    ```
+
+---
+
+## 6. Option 3: Heavy Stress & Multi-User Load Test
+
+A dedicated multi-agent stress benchmark (`apps/whiteboard/scripts/stress-test-collaboration.mjs`) simulates real-world load with **11 simultaneous active users** (1 Owner + 10 Collaborators) in a single live room.
+
+### Load Profile:
+- **Simultaneous Users:** 11 active WebSocket connections (1 Owner + 10 Collaborators).
+- **Cursor Storm:** 110 rapid cursor events fired simultaneously across all 11 WebSockets.
+- **Concurrent Writes:** 33 rapid shape operations fired concurrently across all clients, writing directly through distributed MongoDB Atlas multi-document transactions in the cloud.
+
+### Stress Test Results:
+```text
+=================================================================
+📈 BENCHMARK RESULTS & METRICS
+=================================================================
+   Total Writes Attempted:  33
+   Successful Writes:       33 (100.0%)
+   Failed / Rejected:       0 (0.0%)
+   Total Duration:          13,189ms
+   Effective Throughput:    2.5 edits / second
+   Latency Min / Max:       496ms / 5,109ms
+   Latency P50:             3,942ms
+   Latency P95:             5,085ms
+   Latency P99:             5,109ms
+-----------------------------------------------------------------
+   Final Sequence on Clients: [33]
+   Final Object Count:        [34]
+   State Convergence:       100% IDENTICAL ACROSS ALL 11 CLIENTS
+   Data Loss:               0%
+   Sequence Conflicts:      0 (ZERO)
+=================================================================
+🎉 100% HEAVY STRESS & CONCURRENCY TEST PASSED!
+=================================================================
+```
+

@@ -196,7 +196,7 @@ export const createIdentityService = ({
         emailKeyHash: hashRateKey("email", `invitation-identity:${identityId}`),
         ipKeyHash: hashRateKey("ip", `invitation-ip:${ipAddress}`),
         windowStart: new Date(windowStartMs), expiresAt: new Date(windowStartMs + identityPolicy.rateLimitRecordRetentionMs),
-        emailLimit: 10, ipLimit: 30
+        emailLimit: 30, ipLimit: 100
       });
     } catch { throw new IdentityServiceFailure("storage_unavailable"); }
   };

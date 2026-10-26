@@ -196,7 +196,10 @@ Diagrams are serialized to standard XML to guarantee human readability, structur
 | **Arrowhead Misalignment** | Reverse-point lookup for arrowhead angle took the immediate neighbor, which in rare sub-pixel events was identical to the tip (`dist == 0`), producing `NaN` rotation. | Introduced `findAdjacent(pts, index, reverse)` requiring Euclidean distance `> 0.5px`. |
 | **Connector Gap on Slanted Shapes** | `shapeConnectionCoordinate` returned outer rectangular box points (`x + width`), leaving visible air gaps on parallelograms, trapezoids, and arrows. | Implemented perimeter slope math for 9 non-rectangular shapes and dynamic border recalculation in `CanvasObjectRenderer`. |
 | **Selection Box Disconnect** | Selection outlines calculated static endpoints while shapes were moved, causing a disjointed box until drop. | Integrated `resolveAttachedEndpoint` into `CanvasSelection` and overlay renderers. |
-| **Concurrent Edit Collisions** | Simultaneous edits in the same session raced against MongoDB sequence numbers, rejecting valid edits with `action_conflict`. | Implemented per-session serialized execution queue (`enqueueSession`) and parallelized DB queries via `Promise.all`. |
+| **Concurrent Edit Collisions** | Simultaneous edits in the same session raced against MongoDB sequence numbers, rejecting valid edits with `action_conflict`. | Implemented per-session serialized execution queue (`enqueueSession`) in `realtime.server.ts` to ensure deterministic ordering. |
+| **MongoDB Transaction Conflict (Code 117)** | Interleaving parallel operations (`Promise.all`) on a single MongoDB `ClientSession` triggered `ConflictingOperationInProgress`. | Structured all transaction queries in `sessions.repository.ts` sequentially within each unit-of-work. |
+| **Peer Awareness State Dropping** | Multi-client presence sync bundled multiple client awareness states, which exceeded `maximumAwarenessClientStatesPerUpdate = 1` and got dropped. | Raised limit to `30` in `realtime.server.ts` while enforcing strict server-side cursor sanitization. |
+| **Team Invitation Rate Limiting** | Owners inviting large teams were throttled by conservative per-IP and per-identity invitation defaults. | Expanded `magicLinkMaxPerIp` to 60 and invitation reservation limits to 30 to support full 25-member rooms. |
 | **Jerky Remote Cursors** | Cursor throttle was set to 100ms with no position interpolation, causing stepped movement. | Reduced throttle to 33ms (~30fps), increased server rate ceiling to 2,400, and added SVG `transform 0.04s linear` transition. |
 | **UI Stutter on Inbound Edits** | Receiving remote edits triggered synchronous full XML serialization (`serializeBoardXml`) on the main thread for dirty checking. | Debounced dirty check by 400ms, keeping the 60fps rendering pipeline non-blocking. |
 
@@ -222,7 +225,7 @@ pnpm --filter @whiteboard/api run dev
 ### 8.2 Automated Test Execution
 Run the complete test suite across all packages:
 ```powershell
-# Run all unit and integration tests (160 whiteboard + 64 API tests)
+# Run all unit and integration tests (160 whiteboard + 64 API + 11 App tests)
 pnpm test
 
 # Run strict TypeScript typecheck across monorepo
@@ -231,6 +234,20 @@ pnpm run typecheck
 # Run repository health and boundary check
 pnpm run check
 ```
+
+### 8.3 Realtime Collaboration & Concurrency Benchmarks
+Comprehensive verification scripts for live multi-user editing and stress testing:
+```powershell
+# 1. Dual-user live collaboration and race-condition simulator
+node apps/whiteboard/scripts/test-live-collaboration.mjs
+
+# 2. Official bi-directional WebSocket integration test
+pnpm.cmd --filter @workspace/whiteboard-app run test:realtime
+
+# 3. Heavy Multi-User Stress Benchmark (11 simultaneous users, 33 concurrent writes, 100% convergence)
+node apps/whiteboard/scripts/stress-test-collaboration.mjs
+```
+> For complete benchmark methodology, charts, and sequence diagrams, refer to [`.project/WHITEBOARD-LIVE-COLLABORATION-TEST-REPORT.md`](file:///d:/Codatory/WhiteBoard/nutshyll/.project/WHITEBOARD-LIVE-COLLABORATION-TEST-REPORT.md).
 
 ### 8.3 Environment Variables Reference
 - **`apps/whiteboard/.env`**:

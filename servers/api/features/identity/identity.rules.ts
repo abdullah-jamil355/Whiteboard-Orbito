@@ -3,8 +3,8 @@ import { createHash, randomBytes } from "node:crypto";
 export const identityPolicy = Object.freeze({
   magicLinkLifetimeMs: 10 * 60 * 1000,
   magicLinkRateLimitWindowMs: 15 * 60 * 1000,
-  magicLinkMaxPerEmail: 3,
-  magicLinkMaxPerIp: 10,
+  magicLinkMaxPerEmail: 5,
+  magicLinkMaxPerIp: 60,
   apiRequestRateLimitWindowMs: 60 * 1000,
   apiRequestsPerSubject: 300,
   apiRequestsPerIp: 1_800,
