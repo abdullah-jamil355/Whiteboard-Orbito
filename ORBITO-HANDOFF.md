@@ -196,6 +196,9 @@ Diagrams are serialized to standard XML to guarantee human readability, structur
 | **Arrowhead Misalignment** | Reverse-point lookup for arrowhead angle took the immediate neighbor, which in rare sub-pixel events was identical to the tip (`dist == 0`), producing `NaN` rotation. | Introduced `findAdjacent(pts, index, reverse)` requiring Euclidean distance `> 0.5px`. |
 | **Connector Gap on Slanted Shapes** | `shapeConnectionCoordinate` returned outer rectangular box points (`x + width`), leaving visible air gaps on parallelograms, trapezoids, and arrows. | Implemented perimeter slope math for 9 non-rectangular shapes and dynamic border recalculation in `CanvasObjectRenderer`. |
 | **Selection Box Disconnect** | Selection outlines calculated static endpoints while shapes were moved, causing a disjointed box until drop. | Integrated `resolveAttachedEndpoint` into `CanvasSelection` and overlay renderers. |
+| **Concurrent Edit Collisions** | Simultaneous edits in the same session raced against MongoDB sequence numbers, rejecting valid edits with `action_conflict`. | Implemented per-session serialized execution queue (`enqueueSession`) and parallelized DB queries via `Promise.all`. |
+| **Jerky Remote Cursors** | Cursor throttle was set to 100ms with no position interpolation, causing stepped movement. | Reduced throttle to 33ms (~30fps), increased server rate ceiling to 2,400, and added SVG `transform 0.04s linear` transition. |
+| **UI Stutter on Inbound Edits** | Receiving remote edits triggered synchronous full XML serialization (`serializeBoardXml`) on the main thread for dirty checking. | Debounced dirty check by 400ms, keeping the 60fps rendering pipeline non-blocking. |
 
 ---
 

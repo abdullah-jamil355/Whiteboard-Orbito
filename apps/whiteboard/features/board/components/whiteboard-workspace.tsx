@@ -74,6 +74,10 @@ const WhiteboardWorkspace = (): ReactElement => {
   const [boardHistory, setBoardHistory] = useState<BoardHistory>({ past: [], future: [] });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const savedDocumentXmlRef = useRef<string | null>(null);
+  const dirtyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (dirtyTimerRef.current !== null) clearTimeout(dirtyTimerRef.current);
+  }, []);
   const hasUnsavedCanvasContent = isDirty && board.objects.length > 0;
   const [realtimeFeedback, setRealtimeFeedback] = useState<string | null>(null);
   const resetBoardHistory = useCallback((): void => setBoardHistory({ past: [], future: [] }), []);
@@ -103,8 +107,16 @@ const WhiteboardWorkspace = (): ReactElement => {
     onSessionEnded: sessionActions.handleRemoteSessionEnd,
     onBoardState: (nextBoard) => {
       setBoard(nextBoard);
-      try { setIsDirty(savedDocumentXmlRef.current === null || serializeBoardXml(nextBoard) !== savedDocumentXmlRef.current); }
-      catch { setIsDirty(true); }
+      if (savedDocumentXmlRef.current === null) {
+        setIsDirty(true);
+      } else {
+        if (dirtyTimerRef.current !== null) clearTimeout(dirtyTimerRef.current);
+        dirtyTimerRef.current = setTimeout(() => {
+          try { setIsDirty(serializeBoardXml(nextBoard) !== savedDocumentXmlRef.current); }
+          catch { setIsDirty(true); }
+        }, 400);
+      }
+
     },
     onFeedback: setRealtimeFeedback
   });

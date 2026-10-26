@@ -44,7 +44,7 @@ export const useWorkspacePresencePublishing = ({ providerRef, sessionId, role, r
       lastCursorSentAtRef.current = Date.now();
       cursorTimerRef.current = null;
     };
-    const remaining = Math.max(0, 100 - (Date.now() - lastCursorSentAtRef.current));
+    const remaining = Math.max(0, 33 - (Date.now() - lastCursorSentAtRef.current));
     if (remaining === 0) sendPending();
     else if (cursorTimerRef.current === null) cursorTimerRef.current = setTimeout(sendPending, remaining);
   }, [providerRef, role, roleSessionId, sessionId]);

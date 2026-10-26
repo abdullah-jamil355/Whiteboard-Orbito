@@ -135,13 +135,15 @@ export const createSessionRepository = (): RealtimeSessionRepository => Object.f
     try {
       let applied: Readonly<{ actionId: string; board: BoardSession["board"]; sequence: number; history: ReturnType<typeof historyFor> }> | null = null;
       await transaction.withTransaction(async () => {
-        const current = await WbBoardSessionModel.findOne({ _id: sessionObjectId, status: "active", memberIdentityIds: actorObjectId }).session(transaction).lean().exec();
+        const [current, priorAction, history] = await Promise.all([
+          WbBoardSessionModel.findOne({ _id: sessionObjectId, status: "active", memberIdentityIds: actorObjectId }).session(transaction).lean().exec(),
+          WbBoardOperationModel.findOne({ sessionId: sessionObjectId, actionId: command.actionId }).session(transaction).lean().exec(),
+          WbBoardHistoryModel.findOne({ sessionId: sessionObjectId }).session(transaction).lean().exec()
+        ]);
         if (!current) { applied = null; return; }
         if (command.baseSequence > current.sequence) throw new BoardEditRejected("future_sequence");
-        const priorAction = await WbBoardOperationModel.findOne({ sessionId: sessionObjectId, actionId: command.actionId }).session(transaction).lean().exec();
         if (priorAction) {
           if (objectIdToString(priorAction.actorIdentityId) !== actorIdentityId || (priorAction.historyKind ?? "edit") !== "edit") throw new BoardEditRejected("action_conflict");
-          const history = await WbBoardHistoryModel.findOne({ sessionId: sessionObjectId }).session(transaction).lean().exec();
           applied = { actionId: command.actionId, board: current.board, sequence: current.sequence, history: historyFor(history) };
           return;
         }
@@ -158,7 +160,6 @@ export const createSessionRepository = (): RealtimeSessionRepository => Object.f
         }
         const sequence = current.sequence + 1;
         const isMeaningful = inverseChanges.length > 0;
-        const history = await WbBoardHistoryModel.findOne({ sessionId: sessionObjectId }).session(transaction).lean().exec();
         const nextStacks = appendForwardHistoryAction({ undo: history?.undoActionIds ?? [], redo: history?.redoActionIds ?? [] }, command.actionId, isMeaningful, maximumHistoryActions);
         const undoActionIds = nextStacks.undo;
         const redoActionIds = nextStacks.redo;
@@ -170,10 +171,12 @@ export const createSessionRepository = (): RealtimeSessionRepository => Object.f
           inverseGuards, createdAt: now
         }], { session: transaction });
         if (!operation) throw new Error("Accepted edit history was not persisted.");
-        const saved = await WbBoardSessionModel.updateOne({ _id: sessionObjectId, status: "active", memberIdentityIds: actorObjectId, sequence: current.sequence }, { $set: { board: nextBoard, sequence, updatedAt: now } }, { session: transaction }).exec();
+        const [saved] = await Promise.all([
+          WbBoardSessionModel.updateOne({ _id: sessionObjectId, status: "active", memberIdentityIds: actorObjectId, sequence: current.sequence }, { $set: { board: nextBoard, sequence, updatedAt: now } }, { session: transaction }).exec(),
+          WbBoardHistoryModel.findOneAndUpdate({ sessionId: sessionObjectId }, { $set: { undoActionIds, redoActionIds, updatedAt: now } }, { upsert: true, session: transaction }).exec(),
+          sequence % 100 === 0 ? WbBoardSnapshotModel.create([{ sessionId: sessionObjectId, sequence, board: nextBoard, createdAt: now }], { session: transaction }) : Promise.resolve()
+        ]);
         if (saved.modifiedCount !== 1) throw new BoardEditRejected("action_conflict");
-        await WbBoardHistoryModel.findOneAndUpdate({ sessionId: sessionObjectId }, { $set: { undoActionIds, redoActionIds, updatedAt: now } }, { upsert: true, session: transaction }).exec();
-        if (sequence % 100 === 0) await WbBoardSnapshotModel.create([{ sessionId: sessionObjectId, sequence, board: nextBoard, createdAt: now }], { session: transaction });
         applied = { actionId: command.actionId, board: nextBoard, sequence, history: historyFor({ undoActionIds, redoActionIds }) };
       });
       return applied;
@@ -187,16 +190,17 @@ export const createSessionRepository = (): RealtimeSessionRepository => Object.f
     try {
       let applied: Readonly<{ actionId: string; board: BoardSession["board"]; sequence: number; history: ReturnType<typeof historyFor> }> | null = null;
       await transaction.withTransaction(async () => {
-        const current = await WbBoardSessionModel.findOne({ _id: sessionObjectId, status: "active", memberIdentityIds: actorObjectId }).session(transaction).lean().exec();
+        const [current, priorAction, history] = await Promise.all([
+          WbBoardSessionModel.findOne({ _id: sessionObjectId, status: "active", memberIdentityIds: actorObjectId }).session(transaction).lean().exec(),
+          WbBoardOperationModel.findOne({ sessionId: sessionObjectId, actionId }).session(transaction).lean().exec(),
+          WbBoardHistoryModel.findOne({ sessionId: sessionObjectId }).session(transaction).lean().exec()
+        ]);
         if (!current) { applied = null; return; }
-        const priorAction = await WbBoardOperationModel.findOne({ sessionId: sessionObjectId, actionId }).session(transaction).lean().exec();
         if (priorAction) {
           if (objectIdToString(priorAction.actorIdentityId) !== actorIdentityId || priorAction.historyKind !== action) throw new BoardEditRejected("action_conflict");
-          const history = await WbBoardHistoryModel.findOne({ sessionId: sessionObjectId }).session(transaction).lean().exec();
           applied = { actionId, board: current.board, sequence: current.sequence, history: historyFor(history) };
           return;
         }
-        const history = await WbBoardHistoryModel.findOne({ sessionId: sessionObjectId }).session(transaction).lean().exec();
         const undoActionIds = [...(history?.undoActionIds ?? [])];
         const redoActionIds = [...(history?.redoActionIds ?? [])];
         const targetActionId = (action === "undo" ? undoActionIds : redoActionIds).at(-1);
@@ -230,11 +234,13 @@ export const createSessionRepository = (): RealtimeSessionRepository => Object.f
           inverseGuards, createdAt: now
         }], { session: transaction });
         if (!operation) throw new Error("History action was not persisted.");
-        const saved = await WbBoardSessionModel.updateOne({ _id: sessionObjectId, status: "active", memberIdentityIds: actorObjectId, sequence: current.sequence }, { $set: { board: nextBoard, sequence, updatedAt: now } }, { session: transaction }).exec();
+        const [saved] = await Promise.all([
+          WbBoardSessionModel.updateOne({ _id: sessionObjectId, status: "active", memberIdentityIds: actorObjectId, sequence: current.sequence }, { $set: { board: nextBoard, sequence, updatedAt: now } }, { session: transaction }).exec(),
+          WbBoardHistoryModel.findOneAndUpdate({ sessionId: sessionObjectId }, { $set: { undoActionIds: nextStacks.undo, redoActionIds: nextStacks.redo, updatedAt: now } }, { upsert: true, session: transaction }).exec()
+        ]);
         if (saved.modifiedCount !== 1) throw new BoardEditRejected("action_conflict");
         const boundedUndoActionIds = nextStacks.undo;
         const boundedRedoActionIds = nextStacks.redo;
-        await WbBoardHistoryModel.findOneAndUpdate({ sessionId: sessionObjectId }, { $set: { undoActionIds: boundedUndoActionIds, redoActionIds: boundedRedoActionIds, updatedAt: now } }, { upsert: true, session: transaction }).exec();
         if (sequence % 100 === 0) await WbBoardSnapshotModel.create([{ sessionId: sessionObjectId, sequence, board: nextBoard, createdAt: now }], { session: transaction });
         applied = { actionId, board: nextBoard, sequence, history: historyFor({ undoActionIds: boundedUndoActionIds, redoActionIds: boundedRedoActionIds }) };
       });

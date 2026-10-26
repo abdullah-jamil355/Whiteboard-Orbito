@@ -20,8 +20,8 @@ type Dependencies = Readonly<{
 const leaseMs = 90_000;
 const heartbeatMs = 30_000;
 const commandWindowMs = 60_000;
-const maximumCommandsPerWindow = 600;
-const maximumAwarenessUpdatesPerWindow = 1_200;
+const maximumCommandsPerWindow = 1_200;
+const maximumAwarenessUpdatesPerWindow = 2_400;
 const maximumAwarenessClientStatesPerUpdate = 1;
 const actionIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const readActionId = (value: unknown): string | undefined => {
@@ -38,6 +38,16 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
   const commandWindows = new Map<string, { startedAt: number; count: number }>();
   const awarenessWindows = new Map<string, { startedAt: number; count: number }>();
   const awarenessAnomalyLogged = new Set<string>();
+  const sessionQueues = new Map<string, Promise<unknown>>();
+  const enqueueSession = <T>(sessionId: string, task: () => Promise<T>): Promise<T> => {
+    const prior = sessionQueues.get(sessionId) ?? Promise.resolve();
+    const next = prior.then(task, task);
+    sessionQueues.set(sessionId, next);
+    next.finally(() => {
+      if (sessionQueues.get(sessionId) === next) sessionQueues.delete(sessionId);
+    });
+    return next;
+  };
   const server = new Server<RealtimeContext>({
     address: config.realtimeHost,
     port: config.realtimePort,
@@ -159,18 +169,20 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
           connection.close({ code: 4403, reason: "Session access has been revoked." });
           return;
         }
-        try {
-          const result = await sessions.applyHistoryAction(context.sessionId, context.identityId, actionId, parsed.data.type === "board:undo" ? "undo" : "redo", new Date());
-          if (!result) { connection.close({ code: 4403, reason: "Session access has been revoked." }); return; }
-          document.broadcastStateless(JSON.stringify({ type: "board:state", actionId: result.actionId, actorIdentityId: context.identityId, board: result.board, sequence: result.sequence, history: result.history }));
-        } catch (error) {
-          if (error instanceof BoardEditRejected) {
-            connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId, reason: error.reason }));
-            return;
+        await enqueueSession(context.sessionId, async () => {
+          try {
+            const result = await sessions.applyHistoryAction(context.sessionId, context.identityId, actionId, parsed.data.type === "board:undo" ? "undo" : "redo", new Date());
+            if (!result) { connection.close({ code: 4403, reason: "Session access has been revoked." }); return; }
+            document.broadcastStateless(JSON.stringify({ type: "board:state", actionId: result.actionId, actorIdentityId: context.identityId, board: result.board, sequence: result.sequence, history: result.history }));
+          } catch (error) {
+            if (error instanceof BoardEditRejected) {
+              connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId, reason: error.reason }));
+              return;
+            }
+            logger.error("Realtime shared history action could not be persisted.", { sessionId: context.sessionId, errorType: error instanceof Error ? error.name : "UnknownError" });
+            connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId, reason: "storage_unavailable" }));
           }
-          logger.error("Realtime shared history action could not be persisted.", { sessionId: context.sessionId, errorType: error instanceof Error ? error.name : "UnknownError" });
-          connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId, reason: "storage_unavailable" }));
-        }
+        });
         return;
       }
       const { command } = parsed.data;
@@ -182,18 +194,20 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
         connection.close({ code: 4403, reason: "Session access has been revoked." });
         return;
       }
-      try {
-        const result = await sessions.applyEdit(context.sessionId, context.identityId, command, new Date());
-        if (!result) { connection.close({ code: 4403, reason: "Session access has been revoked." }); return; }
-        document.broadcastStateless(JSON.stringify({ type: "board:state", actionId: result.actionId, actorIdentityId: context.identityId, board: result.board, sequence: result.sequence, history: result.history }));
-      } catch (error) {
-        if (error instanceof BoardEditRejected) {
-          connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId: command.actionId, reason: error.reason }));
-          return;
+      await enqueueSession(context.sessionId, async () => {
+        try {
+          const result = await sessions.applyEdit(context.sessionId, context.identityId, command, new Date());
+          if (!result) { connection.close({ code: 4403, reason: "Session access has been revoked." }); return; }
+          document.broadcastStateless(JSON.stringify({ type: "board:state", actionId: result.actionId, actorIdentityId: context.identityId, board: result.board, sequence: result.sequence, history: result.history }));
+        } catch (error) {
+          if (error instanceof BoardEditRejected) {
+            connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId: command.actionId, reason: error.reason }));
+            return;
+          }
+          logger.error("Realtime board edit could not be persisted.", { sessionId: context.sessionId, errorType: error instanceof Error ? error.name : "UnknownError" });
+          connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId: command.actionId, reason: "storage_unavailable" }));
         }
-        logger.error("Realtime board edit could not be persisted.", { sessionId: context.sessionId, errorType: error instanceof Error ? error.name : "UnknownError" });
-        connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId: command.actionId, reason: "storage_unavailable" }));
-      }
+      });
     },
     beforeHandleAwareness: ({ states, context }) => {
       if (context) {
