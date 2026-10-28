@@ -13,6 +13,8 @@ export type ApiConfig = Readonly<{
   apiTrustProxyHops?: number;
   gmailUser?: string;
   gmailAppPassword?: string;
+  brevoApiKey?: string;
+  brevoSenderEmail?: string;
   googleOAuthClientId?: string;
   googleOAuthClientSecret?: string;
   googleOAuthRedirectUri?: string;

@@ -16,6 +16,8 @@ export const createApiConfig = (environment: ValidatedApiEnvironment): ApiConfig
   ...(environment.API_TRUST_PROXY_HOPS !== undefined ? { apiTrustProxyHops: environment.API_TRUST_PROXY_HOPS } : {}),
   ...(environment.GMAIL_USER ? { gmailUser: environment.GMAIL_USER } : {}),
   ...(environment.GMAIL_APP_PASSWORD ? { gmailAppPassword: environment.GMAIL_APP_PASSWORD } : {}),
+  ...(environment.BREVO_API_KEY ? { brevoApiKey: environment.BREVO_API_KEY } : {}),
+  ...(environment.BREVO_SENDER_EMAIL ? { brevoSenderEmail: environment.BREVO_SENDER_EMAIL } : {}),
   ...(environment.GOOGLE_OAUTH_CLIENT_ID && environment.GOOGLE_OAUTH_CLIENT_SECRET && environment.GOOGLE_OAUTH_REDIRECT_URI && environment.GOOGLE_TOKEN_ENCRYPTION_KEY ? {
     googleOAuthClientId: environment.GOOGLE_OAUTH_CLIENT_ID,
     googleOAuthClientSecret: environment.GOOGLE_OAUTH_CLIENT_SECRET,

@@ -13,6 +13,8 @@ export const apiEnvironmentSchema = z.object({
   API_TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).optional(),
   GMAIL_USER: z.email().optional(),
   GMAIL_APP_PASSWORD: z.string().min(1).transform((value) => value.replace(/\s/g, "")).pipe(z.string().regex(/^[A-Za-z0-9]{16}$/)).optional(),
+  BREVO_API_KEY: z.string().min(1).optional(),
+  BREVO_SENDER_EMAIL: z.email().optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.url().optional(),
@@ -21,6 +23,9 @@ export const apiEnvironmentSchema = z.object({
 }).superRefine((environment, context) => {
   if ((environment.GMAIL_USER === undefined) !== (environment.GMAIL_APP_PASSWORD === undefined)) {
     context.addIssue({ code: "custom", path: ["GMAIL_APP_PASSWORD"], message: "GMAIL_USER and GMAIL_APP_PASSWORD must be configured together." });
+  }
+  if ((environment.BREVO_API_KEY === undefined) !== (environment.BREVO_SENDER_EMAIL === undefined)) {
+    context.addIssue({ code: "custom", path: ["BREVO_SENDER_EMAIL"], message: "BREVO_API_KEY and BREVO_SENDER_EMAIL must be configured together." });
   }
   const googleOAuthValues = [environment.GOOGLE_OAUTH_CLIENT_ID, environment.GOOGLE_OAUTH_CLIENT_SECRET, environment.GOOGLE_OAUTH_REDIRECT_URI, environment.GOOGLE_TOKEN_ENCRYPTION_KEY];
   if (googleOAuthValues.some((value) => value !== undefined) && googleOAuthValues.some((value) => value === undefined)) {

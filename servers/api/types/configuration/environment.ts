@@ -15,6 +15,8 @@ export type ValidatedApiEnvironment = Readonly<{
   API_TRUST_PROXY_HOPS?: number | undefined;
   GMAIL_USER?: string | undefined;
   GMAIL_APP_PASSWORD?: string | undefined;
+  BREVO_API_KEY?: string | undefined;
+  BREVO_SENDER_EMAIL?: string | undefined;
   GOOGLE_OAUTH_CLIENT_ID?: string | undefined;
   GOOGLE_OAUTH_CLIENT_SECRET?: string | undefined;
   GOOGLE_OAUTH_REDIRECT_URI?: string | undefined;

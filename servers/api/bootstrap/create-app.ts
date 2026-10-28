@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 import { randomBytes } from "node:crypto";
 import { createHttpLogger, type Logger } from "@workspace/logging";
 import type { ApiConfig } from "../types/index.js";
-import { createGmailSmtpEmailSender } from "../integrations/index.js";
+import { createBrevoHttpEmailSender, createGmailSmtpEmailSender } from "../integrations/index.js";
 import { apiRuntime } from "../constants/index.js";
 import { createHealthRoutes } from "../features/health/index.js";
 import {
@@ -36,9 +36,11 @@ export const createApp = ({ config, logger, closeSessionConnections, closeMember
   }));
   app.use(createCorsMiddleware({ origin: config.webOrigin }));
   const mailbox = createDevMailbox();
-  const emailSender = config.gmailUser && config.gmailAppPassword
-    ? createGmailSmtpEmailSender({ username: config.gmailUser, appPassword: config.gmailAppPassword })
-    : null;
+  const emailSender = config.brevoApiKey && config.brevoSenderEmail
+    ? createBrevoHttpEmailSender({ apiKey: config.brevoApiKey, senderEmail: config.brevoSenderEmail })
+    : config.gmailUser && config.gmailAppPassword
+      ? createGmailSmtpEmailSender({ username: config.gmailUser, appPassword: config.gmailAppPassword })
+      : null;
   const mailer = emailSender
     ? createIdentityMailer(emailSender)
     : config.environment === "development" ? mailbox.mailer : unavailableIdentityMailer;
