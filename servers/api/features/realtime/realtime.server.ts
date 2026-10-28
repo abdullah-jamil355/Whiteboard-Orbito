@@ -55,11 +55,13 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     stopOnSignals: false,
     quiet: true,
     websocketOptions: { maxPayload: 1_048_576 },
-    onAuthenticate: async ({ documentName, requestHeaders, connectionConfig, socketId }) => {
+    onAuthenticate: async ({ documentName, requestHeaders, connectionConfig, socketId, token: payloadToken }) => {
       const headers = requestHeaders as unknown as Readonly<{ get: (name: string) => string | null }>;
       if (!isAllowedRealtimeOrigin(headers.get("origin"), config.webOrigin)) throw new Error("Origin not allowed.");
       const sessionId = parseRealtimeRoomId(documentName);
-      const token = readRealtimeSessionCookie(headers.get("cookie"));
+      const token = (typeof payloadToken === "string" && payloadToken.trim().length > 0)
+        ? payloadToken.trim()
+        : readRealtimeSessionCookie(headers.get("cookie"));
       if (!sessionId || !token) throw new Error("Authentication required.");
       const principal = await identity.getIdentityForSession(token);
       if (!principal) throw new Error("Authentication required.");

@@ -1,4 +1,4 @@
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import { ERROR_CODES, HTTP_STATUS } from "../constants/index.js";
 
 type RateLimitReservation = Readonly<{ allowed: boolean; retryAfterSeconds: number }>;
@@ -6,8 +6,14 @@ type ApiRateLimitDependencies = Readonly<{
   reserve: (input: Readonly<{ sessionToken?: string; ipAddress: string }>) => Promise<RateLimitReservation>;
 }>;
 
-const readSessionCookie = (cookieHeader: string | undefined): string | undefined => {
-  const value = cookieHeader?.split(";").map((part) => part.trim())
+const readSessionToken = (request: Request): string | undefined => {
+  const auth = request.headers.authorization;
+  if (typeof auth === "string" && auth.startsWith("Bearer ")) {
+    const token = auth.slice(7).trim();
+    if (token.length >= 32 && token.length <= 256) return token;
+  }
+  const cookie = request.headers.cookie;
+  const value = cookie?.split(";").map((part) => part.trim())
     .find((part) => part.startsWith("wb_session="))?.slice("wb_session=".length);
   if (!value) return undefined;
   try {
@@ -25,7 +31,7 @@ export const createApiRateLimitMiddleware = ({ reserve }: ApiRateLimitDependenci
       return;
     }
 
-    const sessionToken = readSessionCookie(request.headers.cookie);
+    const sessionToken = readSessionToken(request);
     const rateLimitInput = { ...(sessionToken === undefined ? {} : { sessionToken }), ipAddress: request.ip ?? "unknown" };
     void reserve(rateLimitInput).then(({ allowed, retryAfterSeconds }) => {
       if (allowed) {

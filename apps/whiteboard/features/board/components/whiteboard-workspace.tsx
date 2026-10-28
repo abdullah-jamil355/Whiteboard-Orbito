@@ -9,7 +9,7 @@ import { useWorkspaceKeyboardActions } from "../use-workspace-keyboard-actions";
 import { useWorkspaceFileActions } from "../use-workspace-file-actions";
 import { useWorkspaceRealtime } from "../use-workspace-realtime";
 import { downloadBoardXml } from "../board-xml-download";
-import { disconnectGoogleMail, getGoogleMailStatus, startGoogleMailConnect, signOut, type GoogleMailStatus, type VerifiedIdentity } from "../api-client";
+import { disconnectGoogleMail, getGoogleMailStatus, getStoredIdentity, startGoogleMailConnect, signOut, type GoogleMailStatus, type VerifiedIdentity } from "../api-client";
 import { WorkspaceAuthDialog } from "./workspace-auth-dialog";
 import { WorkspaceAvailableSessions } from "./workspace-available-sessions";
 import { WorkspaceInvitations } from "./workspace-invitations";
@@ -43,7 +43,7 @@ const WhiteboardWorkspace = (): ReactElement => {
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<BoardSession | null>(null);
   const [currentOwnerId, setCurrentOwnerId] = useState<string | null>(null);
-  const [identity, setIdentity] = useState<VerifiedIdentity | null>(null);
+  const [identity, setIdentity] = useState<VerifiedIdentity | null>(() => getStoredIdentity());
   const [googleMailState, setGoogleMailState] = useState<Readonly<{ identityId: string; status: GoogleMailStatus | null }> | null>(null);
   const googleMail = identity !== null && googleMailState?.identityId === identity.id ? googleMailState.status : null;
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -339,6 +339,7 @@ const WhiteboardWorkspace = (): ReactElement => {
         onOpenChange={setAuthDialogOpen}
         onSuccess={(authIdentity) => {
           setIdentity(authIdentity);
+          setCurrentOwnerId(authIdentity.id);
           setSessionFeedback(null);
         }}
       />

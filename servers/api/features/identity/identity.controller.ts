@@ -29,6 +29,11 @@ type ControllerDependencies = Readonly<{
 }>;
 
 export const readIdentitySessionToken = (request: Request): string | undefined => {
+  const authHeader = request.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const bearer = authHeader.slice(7).trim();
+    if (bearer.length >= 32 && bearer.length <= 256) return bearer;
+  }
   const cookieHeader = request.headers.cookie;
   if (!cookieHeader) return undefined;
   const value = cookieHeader.split(";").map((part) => part.trim())
@@ -42,13 +47,17 @@ export const readIdentitySessionToken = (request: Request): string | undefined =
 };
 
 const setSessionCookie = (response: Response, token: string, config: ControllerConfig): void => {
-  const secure = config.environment === "production" ? "; Secure" : "";
-  response.setHeader("Set-Cookie", `${sessionCookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${String(cookieLifetimeSeconds)}${secure}`);
+  const isProd = config.environment === "production";
+  const sameSite = isProd ? "None" : "Lax";
+  const secure = isProd ? "; Secure; Partitioned" : "";
+  response.setHeader("Set-Cookie", `${sessionCookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${String(cookieLifetimeSeconds)}${secure}`);
 };
 
 const clearSessionCookie = (response: Response, config: ControllerConfig): void => {
-  const secure = config.environment === "production" ? "; Secure" : "";
-  response.setHeader("Set-Cookie", `${sessionCookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
+  const isProd = config.environment === "production";
+  const sameSite = isProd ? "None" : "Lax";
+  const secure = isProd ? "; Secure; Partitioned" : "";
+  response.setHeader("Set-Cookie", `${sessionCookieName}=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0${secure}`);
 };
 
 const failureResponse = (response: Response, error: unknown): void => {
@@ -131,7 +140,7 @@ export const createIdentityController = ({ service, mailbox, config }: Controlle
         const result = await service.registerWithPassword(parsed.data);
         setSessionCookie(response, result.sessionToken, config);
         response.setHeader("Cache-Control", "no-store");
-        response.status(HTTP_STATUS.ok).json({ identity: result.identity, expiresAt: result.expiresAt.toISOString() });
+        response.status(HTTP_STATUS.ok).json({ identity: result.identity, sessionToken: result.sessionToken, expiresAt: result.expiresAt.toISOString() });
       } catch (error) {
         failureResponse(response, error);
       }
@@ -149,7 +158,7 @@ export const createIdentityController = ({ service, mailbox, config }: Controlle
         const result = await service.loginWithPassword(parsed.data);
         setSessionCookie(response, result.sessionToken, config);
         response.setHeader("Cache-Control", "no-store");
-        response.status(HTTP_STATUS.ok).json({ identity: result.identity, expiresAt: result.expiresAt.toISOString() });
+        response.status(HTTP_STATUS.ok).json({ identity: result.identity, sessionToken: result.sessionToken, expiresAt: result.expiresAt.toISOString() });
       } catch (error) {
         failureResponse(response, error);
       }
@@ -160,7 +169,8 @@ export const createIdentityController = ({ service, mailbox, config }: Controlle
         return;
       }
       try {
-        const identity = await service.getIdentityForSession(readIdentitySessionToken(request));
+        const sessionToken = readIdentitySessionToken(request);
+        const identity = await service.getIdentityForSession(sessionToken);
         if (!identity) {
           response.status(HTTP_STATUS.unauthorized).json({
             error: { code: ERROR_CODES.authenticationRequired, message: ERROR_MESSAGES.authenticationRequired }
@@ -168,7 +178,7 @@ export const createIdentityController = ({ service, mailbox, config }: Controlle
           return;
         }
         response.setHeader("Cache-Control", "no-store");
-        response.status(HTTP_STATUS.ok).json({ identity });
+        response.status(HTTP_STATUS.ok).json({ identity, sessionToken });
       } catch (error) {
         failureResponse(response, error);
       }

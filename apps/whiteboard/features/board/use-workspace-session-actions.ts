@@ -48,7 +48,11 @@ export const useWorkspaceSessionActions = (state: WorkspaceSessionState) => {
   };
   const openStartSession = (): void => {
     if (activeSession !== null || isImporting || sessionBusy) return;
-    if (identity === null) { state.setSessionFeedback("Sign in from the main page before starting a live session."); return; }
+    if (identity === null) {
+      state.setSessionFeedback("Sign in to start a live session.");
+      state.setAuthDialogOpen(true);
+      return;
+    }
     state.setSessionTitleDraft(board.title.trim() || "Untitled");
     state.setSessionDialog("start");
   };

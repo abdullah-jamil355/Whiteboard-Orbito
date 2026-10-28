@@ -2,6 +2,46 @@ import type { Board, BoardSession } from "@workspace/whiteboard";
 
 const apiOrigin = process.env.NEXT_PUBLIC_WHITEBOARD_API_ORIGIN ?? "http://localhost:4000";
 
+const TOKEN_STORAGE_KEY = "wb_auth_token";
+const IDENTITY_STORAGE_KEY = "wb_auth_identity";
+
+export const getStoredSessionToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const getStoredIdentity = (): VerifiedIdentity | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(IDENTITY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as VerifiedIdentity : null;
+  } catch {
+    return null;
+  }
+};
+
+export const setStoredAuth = (token: string | null, identity: VerifiedIdentity | null): void => {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+    if (identity) {
+      window.localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(identity));
+    } else {
+      window.localStorage.removeItem(IDENTITY_STORAGE_KEY);
+    }
+  } catch {
+    // Storage access might be restricted
+  }
+};
+
 type ApiFailure = Readonly<{ error?: Readonly<{ code?: string; message?: string }> }>;
 export class WhiteboardApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string) {
@@ -26,18 +66,27 @@ export type ApiBoardSession = Readonly<{
 
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   let response: Response;
+  const token = getStoredSessionToken();
+  const headers: Record<string, string> = {
+    ...(init?.body ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(init?.headers as Record<string, string> || {})
+  };
   try {
     response = await fetch(new URL(path, apiOrigin), {
       ...init,
       cache: "no-store",
       credentials: "include",
-      headers: { ...(init?.body ? { "Content-Type": "application/json" } : {}), ...init?.headers }
+      headers
     });
   } catch (err) {
     console.error(`[API FETCH ERROR] Failed to fetch ${path} from ${apiOrigin}:`, err);
     throw new Error("Whiteboard API is unreachable. Check that it is running and API WEB_ORIGIN matches this app's exact origin.");
   }
   if (!response.ok) {
+    if (response.status === 401) {
+      setStoredAuth(null, null);
+    }
     const body = await response.json().catch((): ApiFailure => ({})) as ApiFailure;
     throw new WhiteboardApiError(body.error?.message ?? `Whiteboard API returned ${response.status}.`, response.status, body.error?.code);
   }
@@ -47,24 +96,43 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
 
 export const getVerifiedIdentity = async (): Promise<VerifiedIdentity | null> => {
   try {
-    const result = await request<{ identity: VerifiedIdentity }>("/auth/session");
+    const result = await request<{ identity: VerifiedIdentity; sessionToken?: string }>("/auth/session");
+    if (result.identity) {
+      setStoredAuth(result.sessionToken ?? getStoredSessionToken(), result.identity);
+    }
     return result.identity;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("401")) return null;
+  } catch {
+    setStoredAuth(null, null);
     return null;
   }
 };
 
-export const registerWithPassword = (input: Readonly<{ email: string; name: string; password: string }>): Promise<{ identity: VerifiedIdentity; expiresAt: string }> =>
-  request("/auth/register", { method: "POST", body: JSON.stringify(input) });
+export const registerWithPassword = async (input: Readonly<{ email: string; name: string; password: string }>): Promise<{ identity: VerifiedIdentity; expiresAt: string }> => {
+  const result = await request<{ identity: VerifiedIdentity; sessionToken?: string; expiresAt: string }>("/auth/register", { method: "POST", body: JSON.stringify(input) });
+  if (result.sessionToken) {
+    setStoredAuth(result.sessionToken, result.identity);
+  }
+  return result;
+};
 
-export const loginWithPassword = (input: Readonly<{ email: string; password: string }>): Promise<{ identity: VerifiedIdentity; expiresAt: string }> =>
-  request("/auth/login", { method: "POST", body: JSON.stringify(input) });
+export const loginWithPassword = async (input: Readonly<{ email: string; password: string }>): Promise<{ identity: VerifiedIdentity; expiresAt: string }> => {
+  const result = await request<{ identity: VerifiedIdentity; sessionToken?: string; expiresAt: string }>("/auth/login", { method: "POST", body: JSON.stringify(input) });
+  if (result.sessionToken) {
+    setStoredAuth(result.sessionToken, result.identity);
+  }
+  return result;
+};
 
 export const readDevelopmentMailbox = (email: string): Promise<{ messages: readonly Readonly<{ kind: "sign-in" | "invitation"; verificationUrl?: string; invitationUrl?: string; expiresAt: string }>[] }> =>
   request("/__dev/mailbox", { method: "POST", body: JSON.stringify({ email }) });
 
-export const signOut = (): Promise<void> => request("/auth/session", { method: "DELETE" });
+export const signOut = async (): Promise<void> => {
+  try {
+    await request("/auth/session", { method: "DELETE" });
+  } finally {
+    setStoredAuth(null, null);
+  }
+};
 export type GoogleMailStatus = Readonly<{ configured: boolean; connected: boolean; email?: string }>;
 export const getGoogleMailStatus = (): Promise<GoogleMailStatus> => request("/auth/google-mail/status");
 export const startGoogleMailConnect = (): Promise<{ authorizationUrl: string }> => request("/auth/google-mail/connect", { method: "POST" });

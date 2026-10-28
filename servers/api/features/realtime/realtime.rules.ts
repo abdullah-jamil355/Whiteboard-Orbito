@@ -14,8 +14,10 @@ export const readRealtimeSessionCookie = (cookieHeader: string | null): string |
   }
 };
 
-export const isAllowedRealtimeOrigin = (requestOrigin: string | null, allowedOrigin: string): boolean =>
-  requestOrigin === allowedOrigin;
+export const isAllowedRealtimeOrigin = (requestOrigin: string | null, allowedOrigin: string): boolean => {
+  if (!requestOrigin) return false;
+  return requestOrigin.replace(/\/+$/, "") === allowedOrigin.replace(/\/+$/, "");
+};
 
 
 export const sanitizeRealtimeAwarenessState = (

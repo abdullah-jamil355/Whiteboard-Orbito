@@ -12,6 +12,7 @@ import { resetInFlightActionOnTransportLoss } from "./realtime-connection";
 import { useWorkspacePresencePublishing } from "./use-workspace-presence-publishing";
 import { readCollaborators } from "./realtime-presence";
 import { createWhiteboardId } from "./create-whiteboard-id";
+import { getStoredSessionToken } from "./api-client";
 
 type RealtimeStatus = "inactive" | "connecting" | "connected" | "disconnected";
 type Dependencies = Readonly<{
@@ -20,7 +21,22 @@ type Dependencies = Readonly<{
   onFeedback: (message: string | null) => void;
   onSessionEnded: () => void;
 }>;
-const realtimeUrl = process.env.NEXT_PUBLIC_WHITEBOARD_REALTIME_URL ?? "ws://localhost:4001";
+const getRealtimeUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_WHITEBOARD_REALTIME_URL) {
+    return process.env.NEXT_PUBLIC_WHITEBOARD_REALTIME_URL;
+  }
+  const apiOrigin = process.env.NEXT_PUBLIC_WHITEBOARD_API_ORIGIN;
+  if (apiOrigin) {
+    try {
+      const url = new URL(apiOrigin);
+      const isSecure = url.protocol === "https:";
+      return `${isSecure ? "wss:" : "ws:"}//${url.host}`;
+    } catch {
+      // fallback below
+    }
+  }
+  return "ws://localhost:4001";
+};
 export const useWorkspaceRealtime = ({ sessionId, onBoardState, onFeedback, onSessionEnded }: Dependencies) => {
   const providerRef = useRef<HocuspocusProvider | null>(null);
   const pendingRef = useRef<PendingEdit[]>([]);
@@ -194,9 +210,10 @@ export const useWorkspaceRealtime = ({ sessionId, onBoardState, onFeedback, onSe
     canSendRef.current = false;
     const document = new Y.Doc();
     const provider = new HocuspocusProvider({
-      url: realtimeUrl,
+      url: getRealtimeUrl(),
       name: sessionId,
       document,
+      token: getStoredSessionToken() ?? null,
       onAuthenticated: () => {
         canSendRef.current = true;
         providerRef.current?.awareness?.setLocalStateField("user", {});
