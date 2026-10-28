@@ -44,7 +44,9 @@ export const createInvitationController = ({ identity, invitations }: Dependenci
         const result = await invitations?.create(sessionId.data, current.id, input.data.email, request.ip ?? "unknown", input.data.role);
         response.setHeader("Cache-Control", "no-store");
         response.status(HTTP_STATUS.accepted).json({
-          message: result?.delivered ? "Invitation sent by email." : "Invitation link generated.",
+          message: result?.delivered
+            ? `Invitation email sent to ${input.data.email}.`
+            : `Invitation created for ${input.data.email}. (Configure GMAIL_USER on server for direct emails)`,
           invitationUrl: result?.invitationUrl,
           delivered: result?.delivered ?? false
         });

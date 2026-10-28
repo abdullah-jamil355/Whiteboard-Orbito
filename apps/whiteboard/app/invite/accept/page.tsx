@@ -25,7 +25,10 @@ const InviteAcceptancePage = (): ReactElement => {
     void Promise.resolve().then(() => getVerifiedIdentity()).then((verified) => {
       setToken(savedToken);
       setIdentity(verified);
-      if (verified) setEmail(verified.email);
+      if (verified) {
+        setEmail(verified.email);
+        setDisplayName(verified.name || verified.email.split("@")[0] || "Collaborator");
+      }
       setMessage(savedToken ? verified ? "Review your name, then accept this invitation." : "Sign in with the invited email address to continue." : "Invitation link is invalid.");
     });
   }, []);

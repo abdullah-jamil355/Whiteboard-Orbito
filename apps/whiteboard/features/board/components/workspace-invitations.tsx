@@ -89,7 +89,7 @@ export const WorkspaceInvitations = ({ sessionId, ownerConnected }: Props): Reac
             <option value="viewer">Viewer</option>
           </select>
         </label>
-        <Button disabled={busy || email.trim().length === 0} type="submit">Create invite link</Button>
+        <Button disabled={busy || email.trim().length === 0} type="submit">{busy ? "Sending…" : "Send Invitation"}</Button>
       </form>
       {message && <p aria-live="polite" className="mt-2 text-sm text-muted-foreground">{message}</p>}
       {generatedLink && (
