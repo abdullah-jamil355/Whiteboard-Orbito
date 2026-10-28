@@ -12,6 +12,8 @@ export const WorkspaceInvitations = ({ sessionId, ownerConnected }: Props): Reac
   const [invitations, setInvitations] = useState<readonly ApiInvitation[]>([]);
   const [participants, setParticipants] = useState<readonly ApiParticipant[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(async (): Promise<void> => {
     const [invitationResult, participantResult] = await Promise.all([listInvitations(sessionId), listSessionParticipants(sessionId)]);
@@ -31,12 +33,15 @@ export const WorkspaceInvitations = ({ sessionId, ownerConnected }: Props): Reac
     setBusy(true);
     setMessage(null);
     try {
-      await createInvitation(sessionId, { email: email.trim(), role: role as "editor" | "viewer" });
+      const result = await createInvitation(sessionId, { email: email.trim(), role: role as "editor" | "viewer" });
       setEmail("");
-      setMessage("Private invitation sent. It expires in 10 minutes.");
+      if (result.invitationUrl) {
+        setGeneratedLink(result.invitationUrl);
+      }
+      setMessage(result.delivered ? "Invitation emailed. Direct invite link also ready below:" : "Invitation link generated! Copy and share the link below with your participant:");
       await refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not send invitation.");
+      setMessage(error instanceof Error ? error.message : "Could not create invitation.");
     } finally {
       setBusy(false);
     }
@@ -84,9 +89,31 @@ export const WorkspaceInvitations = ({ sessionId, ownerConnected }: Props): Reac
             <option value="viewer">Viewer</option>
           </select>
         </label>
-        <Button disabled={busy || email.trim().length === 0} type="submit">Send one-time invite</Button>
+        <Button disabled={busy || email.trim().length === 0} type="submit">Create invite link</Button>
       </form>
-      {message && <p aria-live="polite" className="mt-2 text-muted-foreground">{message}</p>}
+      {message && <p aria-live="polite" className="mt-2 text-sm text-muted-foreground">{message}</p>}
+      {generatedLink && (
+        <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3 text-sm flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-foreground text-xs">Direct Invite Link:</span>
+            <Button
+              onClick={() => {
+                void navigator.clipboard.writeText(generatedLink);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {copied ? "Copied! ✓" : "Copy Link"}
+            </Button>
+          </div>
+          <code className="block select-all break-all rounded bg-background p-2 font-mono text-xs text-muted-foreground border border-border">
+            {generatedLink}
+          </code>
+        </div>
+      )}
       <h3 className="mt-4 font-medium">Participants</h3>
       <ul className="mt-2 space-y-2">
         <li className="flex flex-wrap items-center justify-between gap-2">

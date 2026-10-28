@@ -305,11 +305,9 @@ const WhiteboardWorkspace = (): ReactElement => {
       {identity !== null && <WorkspaceAvailableSessions sessions={availableSessions} email={identity.email} busy={sessionBusy} onRejoin={(sessionId) => void rejoinSession(sessionId)} onDismiss={dismissAvailableSessions} />}
       {activeSession !== null && <WorkspacePresence participants={realtime.participants} />}
 
-      {canManageSession && activeSession !== null && (googleMail?.connected
-        ? <WorkspaceInvitations sessionId={activeSession.id} ownerConnected={realtime.status === "connected"} />
-        : <div className="mx-4 my-2 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3 text-sm">
-          <span>{googleMail?.configured === false ? "Google OAuth must be configured on the API before invitations can be emailed." : "Connect Gmail from the workspace sidebar before inviting participants."}</span>
-        </div>)}
+      {canManageSession && activeSession !== null && (
+        <WorkspaceInvitations sessionId={activeSession.id} ownerConnected={realtime.status === "connected"} />
+      )}
 
       <WorkspaceToolbar
         selectedTool={selectedTool} setSelectedTool={setSelectedTool} readOnly={isReadOnlyViewer}

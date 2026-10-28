@@ -94,16 +94,18 @@ export const WorkspaceSidebar = (props: Props): ReactElement => {
               <span className="wb-sidebar-avatar" aria-hidden="true">{email.slice(0, 1).toUpperCase()}</span>
               <span className="wb-sidebar-label wb-sidebar-profile-email">{email}</span>
             </div>
-            {googleMail?.connected ? (
-              <Button className="wb-sidebar-link" disabled={gmailActionDisabled} onClick={onDisconnectGoogleMail} size="sm"
-                title={`Disconnect Gmail (${googleMail.email})`} variant="ghost">
-                <Mail aria-hidden="true" /><span className="wb-sidebar-label">Gmail connected</span>
-              </Button>
-            ) : (
-              <Button className="wb-sidebar-link" disabled={gmailActionDisabled || googleMail?.configured === false} onClick={onConnectGoogleMail} size="sm"
-                title={googleMail?.configured === false ? "Configure Google OAuth in the API first" : "Connect Gmail to send invitations"} variant="ghost">
-                <Mail aria-hidden="true" /><span className="wb-sidebar-label">Connect Gmail</span>
-              </Button>
+            {googleMail?.configured && (
+              googleMail.connected ? (
+                <Button className="wb-sidebar-link" disabled={gmailActionDisabled} onClick={onDisconnectGoogleMail} size="sm"
+                  title={`Disconnect Gmail (${googleMail.email})`} variant="ghost">
+                  <Mail aria-hidden="true" /><span className="wb-sidebar-label">Gmail connected</span>
+                </Button>
+              ) : (
+                <Button className="wb-sidebar-link" disabled={gmailActionDisabled} onClick={onConnectGoogleMail} size="sm"
+                  title="Connect Gmail to automatically email invitations" variant="ghost">
+                  <Mail aria-hidden="true" /><span className="wb-sidebar-label">Connect Gmail</span>
+                </Button>
+              )
             )}
             <Button className="wb-sidebar-link" disabled={signOutDisabled} onClick={onSignOut} size="sm" title="Sign out" variant="ghost">
               <LogOut aria-hidden="true" /><span className="wb-sidebar-label">Sign out</span>

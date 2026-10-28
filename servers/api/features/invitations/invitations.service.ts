@@ -20,7 +20,7 @@ type Dependencies = Readonly<{
   now?: () => Date;
 }>;
 export type InvitationService = Readonly<{
-  create: (sessionId: string, ownerId: string, email: string, ipAddress: string, role: InvitationRole) => Promise<void>;
+  create: (sessionId: string, ownerId: string, email: string, ipAddress: string, role: InvitationRole) => Promise<Readonly<{ invitationUrl: string; delivered: boolean }>>;
   list: (sessionId: string, ownerId: string) => Promise<readonly Readonly<{ id: string; email: string; role: InvitationRole; createdAt: Date; expiresAt: Date }>[] >;
   cancel: (sessionId: string, ownerId: string, invitationId: string) => Promise<void>;
   listMembers: (sessionId: string, ownerId: string) => Promise<readonly Readonly<{ identityId: string; email: string; role: InvitationRole; displayName: string; connected: boolean }>[] >;
@@ -57,11 +57,14 @@ export const createInvitationService = ({ invitations, sessions, sessionReposito
     } catch { throw new InvitationFailure("storage_unavailable"); }
     const url = new URL("/invite/accept", webOrigin);
     url.hash = new URLSearchParams({ token }).toString();
-    try { await mailer.sendInvitation({ ownerIdentityId: ownerId, recipient, invitationUrl: url.toString(), sessionTitle: session.title, expiresAt }); }
-    catch {
-      try { await invitations.cancel(sessionId, (await invitations.findPending(sessionId, timestamp)).find((item) => item.tokenHash === hashOpaqueSecret(token))?.id ?? "", now()); } catch { /* expiry remains the final safety boundary */ }
-      throw new InvitationFailure("delivery_unavailable");
+    let delivered = false;
+    try {
+      await mailer.sendInvitation({ ownerIdentityId: ownerId, recipient, invitationUrl: url.toString(), sessionTitle: session.title, expiresAt });
+      delivered = true;
+    } catch {
+      delivered = false;
     }
+    return Object.freeze({ invitationUrl: url.toString(), delivered });
   },
   list: async (sessionId, ownerId) => {
     await requireOwnedActiveSession(sessions, sessionId, ownerId);

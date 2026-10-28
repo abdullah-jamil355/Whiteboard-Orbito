@@ -40,7 +40,15 @@ export const createInvitationController = ({ identity, invitations }: Dependenci
       const input = createInvitationSchema.safeParse(request.body);
       if (!sessionId.success || !input.success) { response.status(HTTP_STATUS.badRequest).json({ error: { code: ERROR_CODES.validation, message: ERROR_MESSAGES.validation } }); return; }
       const current = await authenticated(request, response); if (!current) return;
-      try { await invitations?.create(sessionId.data, current.id, input.data.email, request.ip ?? "unknown", input.data.role); response.setHeader("Cache-Control", "no-store"); response.status(HTTP_STATUS.accepted).json({ message: "Invitation sent if delivery is configured." }); }
+      try {
+        const result = await invitations?.create(sessionId.data, current.id, input.data.email, request.ip ?? "unknown", input.data.role);
+        response.setHeader("Cache-Control", "no-store");
+        response.status(HTTP_STATUS.accepted).json({
+          message: result?.delivered ? "Invitation sent by email." : "Invitation link generated.",
+          invitationUrl: result?.invitationUrl,
+          delivered: result?.delivered ?? false
+        });
+      }
       catch (error) { failure(response, error); }
     },
     list: async (request: Request, response: Response): Promise<void> => {

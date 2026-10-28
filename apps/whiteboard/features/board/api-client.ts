@@ -153,7 +153,7 @@ export const getServerSession = (sessionId: string): Promise<{ session: ApiBoard
 export type ApiActiveSession = Readonly<{ id: string; title: string; sequence: number; updatedAt: string }>;
 export const listMyActiveSessions = (): Promise<{ sessions: readonly ApiActiveSession[] }> => request("/sessions/mine");
 
-export const createInvitation = (sessionId: string, input: Readonly<{ email: string; role: "editor" | "viewer" }>): Promise<{ message: string }> =>
+export const createInvitation = (sessionId: string, input: Readonly<{ email: string; role: "editor" | "viewer" }>): Promise<{ message: string; invitationUrl?: string; delivered?: boolean }> =>
   request(`/sessions/${encodeURIComponent(sessionId)}/invitations`, { method: "POST", body: JSON.stringify(input) });
 
 export type ApiInvitation = Readonly<{ id: string; email: string; role: "editor" | "viewer"; createdAt: string; expiresAt: string }>;
