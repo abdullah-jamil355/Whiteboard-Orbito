@@ -4,34 +4,103 @@ import { useState, type ReactElement } from "react";
 import { Button } from "@workspace/ui/primitives/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from "@workspace/ui/primitives/dialog";
 import { Input } from "@workspace/ui/primitives/input";
-import { readDevelopmentMailbox, requestSignInLink } from "../api-client";
+import { loginWithPassword, registerWithPassword, requestSignInLink, type VerifiedIdentity } from "../api-client";
 
 type AuthDialogProps = Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: (identity: VerifiedIdentity) => void;
 }>;
 
-export const WorkspaceAuthDialog = ({ open, onOpenChange }: AuthDialogProps): ReactElement => {
+type AuthMode = "login" | "register" | "magic-link";
+
+export const WorkspaceAuthDialog = ({ open, onOpenChange, onSuccess }: AuthDialogProps): ReactElement => {
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const sendLink = async (): Promise<void> => {
+  const resetForm = (): void => {
+    setName("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setMessage(null);
+    setIsError(false);
+    setBusy(false);
+  };
+
+  const switchMode = (nextMode: AuthMode): void => {
+    setMode(nextMode);
+    setMessage(null);
+    setIsError(false);
+  };
+
+  const handleLogin = async (): Promise<void> => {
+    if (!email.trim() || !password) return;
     setBusy(true);
     setMessage(null);
-    setVerificationUrl(null);
+    setIsError(false);
     try {
-      await requestSignInLink(email);
-      setMessage("If this address can sign in, a verification link has been sent.");
-      try {
-        const mailbox = await readDevelopmentMailbox(email);
-        const newest = [...mailbox.messages].reverse().find((item) => item.kind === "sign-in");
-        if (newest?.verificationUrl) setVerificationUrl(newest.verificationUrl);
-      } catch {
-        // Production and non-loopback API environments intentionally have no local inbox.
-      }
+      const result = await loginWithPassword({ email: email.trim(), password });
+      onSuccess?.(result.identity);
+      onOpenChange(false);
+      resetForm();
     } catch (error) {
+      setIsError(true);
+      setMessage(error instanceof Error ? error.message : "Invalid email or password.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRegister = async (): Promise<void> => {
+    if (!email.trim() || !name.trim() || !password) return;
+    if (password.length < 6) {
+      setIsError(true);
+      setMessage("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setIsError(true);
+      setMessage("Passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    setIsError(false);
+    try {
+      const result = await registerWithPassword({
+        email: email.trim(),
+        name: name.trim(),
+        password
+      });
+      onSuccess?.(result.identity);
+      onOpenChange(false);
+      resetForm();
+    } catch (error) {
+      setIsError(true);
+      setMessage(error instanceof Error ? error.message : "Could not complete registration.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleMagicLink = async (): Promise<void> => {
+    if (!email.trim()) return;
+    setBusy(true);
+    setMessage(null);
+    setIsError(false);
+    try {
+      await requestSignInLink(email.trim());
+      setIsError(false);
+      setMessage("If this address can sign in, a verification link has been sent to your inbox.");
+    } catch (error) {
+      setIsError(true);
       setMessage(error instanceof Error ? error.message : "Could not request a sign-in link.");
     } finally {
       setBusy(false);
@@ -39,19 +108,149 @@ export const WorkspaceAuthDialog = ({ open, onOpenChange }: AuthDialogProps): Re
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby="wb-auth-description" aria-labelledby="wb-auth-title">
+    <Dialog open={open} onOpenChange={(nextOpen) => { onOpenChange(nextOpen); if (!nextOpen) resetForm(); }}>
+      <DialogContent aria-describedby="wb-auth-description" aria-labelledby="wb-auth-title" className="sm:max-w-md">
         <DialogHeader>
-          <h2 className="text-lg font-semibold" id="wb-auth-title">Verify your email</h2>
-          <p className="text-sm text-muted-foreground" id="wb-auth-description">A verified Orbito identity is required to create and manage a server session. We will send a one-time sign-in link.</p>
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <button
+              className={`text-sm font-semibold pb-1 border-b-2 transition-colors ${mode === "login" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              onClick={() => switchMode("login")}
+              type="button"
+            >
+              Sign In
+            </button>
+            <button
+              className={`text-sm font-semibold pb-1 border-b-2 transition-colors ${mode === "register" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              onClick={() => switchMode("register")}
+              type="button"
+            >
+              Create Account
+            </button>
+            <button
+              className={`text-sm font-semibold pb-1 border-b-2 transition-colors ml-auto text-xs ${mode === "magic-link" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              onClick={() => switchMode("magic-link")}
+              type="button"
+            >
+              Magic Link
+            </button>
+          </div>
+          <h2 className="text-lg font-semibold pt-2" id="wb-auth-title">
+            {mode === "login" && "Sign in to Orbito"}
+            {mode === "register" && "Create your Orbito account"}
+            {mode === "magic-link" && "Sign in with Magic Link"}
+          </h2>
+          <p className="text-sm text-muted-foreground" id="wb-auth-description">
+            {mode === "login" && "Enter your email and password to access your whiteboards."}
+            {mode === "register" && "Enter your details to create an account and start collaborating."}
+            {mode === "magic-link" && "We will send a one-time sign-in link to your email."}
+          </p>
         </DialogHeader>
-        <label className="wb-session-field"><span>Email address</span><Input autoComplete="email" autoFocus maxLength={254} onChange={(event) => setEmail(event.currentTarget.value)} type="email" value={email} /></label>
-        {message && <p aria-live="polite" className="text-sm text-muted-foreground">{message}</p>}
-        {verificationUrl && <a className="text-sm underline" href={verificationUrl}>Open local development sign-in link</a>}
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} variant="outline">Close</Button>
-          <Button disabled={busy || email.trim().length === 0} onClick={() => void sendLink()}>{busy ? "Sending…" : "Email me a sign-in link"}</Button>
-        </DialogFooter>
+
+        <form
+          className="flex flex-col gap-3 py-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (mode === "login") void handleLogin();
+            else if (mode === "register") void handleRegister();
+            else void handleMagicLink();
+          }}
+        >
+          {mode === "register" && (
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              <span>Full Name</span>
+              <Input
+                autoComplete="name"
+                autoFocus
+                disabled={busy}
+                maxLength={100}
+                onChange={(event) => setName(event.currentTarget.value)}
+                placeholder="Muhammad Abdullah"
+                required
+                type="text"
+                value={name}
+              />
+            </label>
+          )}
+
+          <label className="flex flex-col gap-1 text-sm font-medium">
+            <span>Email address</span>
+            <Input
+              autoComplete="email"
+              autoFocus={mode !== "register"}
+              disabled={busy}
+              maxLength={254}
+              onChange={(event) => setEmail(event.currentTarget.value)}
+              placeholder="you@example.com"
+              required
+              type="email"
+              value={email}
+            />
+          </label>
+
+          {mode !== "magic-link" && (
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              <span>Password</span>
+              <Input
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                disabled={busy}
+                maxLength={128}
+                minLength={6}
+                onChange={(event) => setPassword(event.currentTarget.value)}
+                placeholder="••••••••"
+                required
+                type="password"
+                value={password}
+              />
+            </label>
+          )}
+
+          {mode === "register" && (
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              <span>Confirm Password</span>
+              <Input
+                autoComplete="new-password"
+                disabled={busy}
+                maxLength={128}
+                minLength={6}
+                onChange={(event) => setConfirmPassword(event.currentTarget.value)}
+                placeholder="••••••••"
+                required
+                type="password"
+                value={confirmPassword}
+              />
+            </label>
+          )}
+
+          {message && (
+            <p
+              aria-live="polite"
+              className={`text-sm p-2 rounded-md ${isError ? "bg-destructive/10 text-destructive border border-destructive/20" : "bg-muted text-muted-foreground"}`}
+            >
+              {message}
+            </p>
+          )}
+
+          <DialogFooter className="mt-2 flex items-center justify-between gap-2">
+            <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+              Cancel
+            </Button>
+            {mode === "login" && (
+              <Button disabled={busy || !email.trim() || !password} type="submit">
+                {busy ? "Signing in…" : "Sign In"}
+              </Button>
+            )}
+            {mode === "register" && (
+              <Button disabled={busy || !email.trim() || !name.trim() || !password} type="submit">
+                {busy ? "Creating account…" : "Create Account"}
+              </Button>
+            )}
+            {mode === "magic-link" && (
+              <Button disabled={busy || !email.trim()} type="submit">
+                {busy ? "Sending…" : "Send Magic Link"}
+              </Button>
+            )}
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

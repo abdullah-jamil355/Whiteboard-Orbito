@@ -1,6 +1,13 @@
 import mongoose, { Schema, type Model, type Types } from "../../integrations/mongodb/index.js";
 
-type IdentityRecord = Readonly<{ email: string; createdAt: Date; verifiedAt: Date }>;
+type IdentityRecord = Readonly<{
+  email: string;
+  name?: string;
+  passwordHash?: string;
+  passwordSalt?: string;
+  createdAt: Date;
+  verifiedAt: Date;
+}>;
 type MagicLinkRecord = Readonly<{
   email: string;
   tokenHash: string;
@@ -22,6 +29,9 @@ type GoogleMailAccountRecord = Readonly<{ identityId: Types.ObjectId; email: str
 
 const identitySchema = new Schema<IdentityRecord>({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  name: { type: String, trim: true },
+  passwordHash: { type: String },
+  passwordSalt: { type: String },
   createdAt: { type: Date, required: true },
   verifiedAt: { type: Date, required: true }
 }, { versionKey: false });

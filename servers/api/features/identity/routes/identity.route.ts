@@ -27,6 +27,8 @@ export const createIdentityRoutes = (dependencies: IdentityRouteDependencies): R
 
   router.post("/auth/magic-links", requireOrigin, controller.requestMagicLink);
   router.post("/auth/magic-links/consume", requireOrigin, controller.consumeMagicLink);
+  router.post("/auth/register", requireOrigin, controller.registerWithPassword);
+  router.post("/auth/login", requireOrigin, controller.loginWithPassword);
   router.get("/auth/session", controller.getCurrentIdentity);
   router.delete("/auth/session", requireOrigin, controller.revokeCurrentSession);
   router.post("/auth/google-mail/connect", requireOrigin, controller.startGoogleMailConnect);

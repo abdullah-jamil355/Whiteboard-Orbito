@@ -9,6 +9,15 @@ const sessionCookieName = "wb_session";
 const cookieLifetimeSeconds = 7 * 24 * 60 * 60;
 const magicLinkRequestSchema = z.object({ email: z.email().max(254) }).strict();
 const magicLinkConsumeSchema = z.object({ token: z.string().min(32).max(256) }).strict();
+const registerSchema = z.object({
+  email: z.email().max(254),
+  name: z.string().min(1).max(100),
+  password: z.string().min(6).max(128)
+}).strict();
+const loginSchema = z.object({
+  email: z.email().max(254),
+  password: z.string().min(1).max(128)
+}).strict();
 const devMailboxRequestSchema = z.object({ email: z.email().max(254) }).strict();
 const googleCallbackSchema = z.object({ state: z.string().min(32).max(256), code: z.string().min(1).max(4096) });
 
@@ -51,6 +60,9 @@ const failureResponse = (response: Response, error: unknown): void => {
     rate_limited: { status: HTTP_STATUS.tooManyRequests, code: ERROR_CODES.rateLimited, message: ERROR_MESSAGES.rateLimited },
     invalid_or_expired_link: { status: HTTP_STATUS.badRequest, code: ERROR_CODES.invalidMagicLink, message: ERROR_MESSAGES.invalidMagicLink },
     google_account_mismatch: { status: HTTP_STATUS.badRequest, code: ERROR_CODES.validation, message: "Connect the Gmail address used to sign in to Whiteboard." },
+    email_already_registered: { status: HTTP_STATUS.conflict, code: ERROR_CODES.validation, message: "An account with this email address already exists." },
+    invalid_credentials: { status: HTTP_STATUS.unauthorized, code: ERROR_CODES.authenticationRequired, message: "Invalid email or password." },
+    password_not_set: { status: HTTP_STATUS.badRequest, code: ERROR_CODES.validation, message: "This account was created without a password. Please sign in via magic link." },
     storage_unavailable: { status: HTTP_STATUS.serviceUnavailable, code: ERROR_CODES.serviceUnavailable, message: ERROR_MESSAGES.serviceUnavailable },
     delivery_unavailable: { status: HTTP_STATUS.serviceUnavailable, code: ERROR_CODES.serviceUnavailable, message: ERROR_MESSAGES.serviceUnavailable }
   }[error.code];
@@ -102,6 +114,42 @@ export const createIdentityController = ({ service, mailbox, config }: Controlle
         setSessionCookie(response, result.sessionToken, config);
         response.setHeader("Cache-Control", "no-store");
         response.status(HTTP_STATUS.ok).json({ identityId: result.identityId, expiresAt: result.expiresAt.toISOString() });
+      } catch (error) {
+        failureResponse(response, error);
+      }
+    },
+    registerWithPassword: async (request: Request, response: Response): Promise<void> => {
+      if (!service) { unavailable(response); return; }
+      const parsed = registerSchema.safeParse(request.body);
+      if (!parsed.success) {
+        response.status(HTTP_STATUS.badRequest).json({
+          error: { code: ERROR_CODES.validation, message: parsed.error.issues[0]?.message ?? ERROR_MESSAGES.validation }
+        });
+        return;
+      }
+      try {
+        const result = await service.registerWithPassword(parsed.data);
+        setSessionCookie(response, result.sessionToken, config);
+        response.setHeader("Cache-Control", "no-store");
+        response.status(HTTP_STATUS.ok).json({ identity: result.identity, expiresAt: result.expiresAt.toISOString() });
+      } catch (error) {
+        failureResponse(response, error);
+      }
+    },
+    loginWithPassword: async (request: Request, response: Response): Promise<void> => {
+      if (!service) { unavailable(response); return; }
+      const parsed = loginSchema.safeParse(request.body);
+      if (!parsed.success) {
+        response.status(HTTP_STATUS.badRequest).json({
+          error: { code: ERROR_CODES.validation, message: parsed.error.issues[0]?.message ?? ERROR_MESSAGES.validation }
+        });
+        return;
+      }
+      try {
+        const result = await service.loginWithPassword(parsed.data);
+        setSessionCookie(response, result.sessionToken, config);
+        response.setHeader("Cache-Control", "no-store");
+        response.status(HTTP_STATUS.ok).json({ identity: result.identity, expiresAt: result.expiresAt.toISOString() });
       } catch (error) {
         failureResponse(response, error);
       }

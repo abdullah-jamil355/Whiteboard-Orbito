@@ -11,7 +11,7 @@ export class WhiteboardApiError extends Error {
 }
 export const isUnavailableSessionError = (error: unknown): error is WhiteboardApiError =>
   error instanceof WhiteboardApiError && error.code === "session_not_found";
-export type VerifiedIdentity = Readonly<{ id: string; email: string }>;
+export type VerifiedIdentity = Readonly<{ id: string; email: string; name?: string }>;
 export type ApiBoardSession = Readonly<{
   id: string;
   ownerIdentityId: string;
@@ -57,6 +57,12 @@ export const getVerifiedIdentity = async (): Promise<VerifiedIdentity | null> =>
 
 export const requestSignInLink = (email: string): Promise<{ message: string }> =>
   request("/auth/magic-links", { method: "POST", body: JSON.stringify({ email }) });
+
+export const registerWithPassword = (input: Readonly<{ email: string; name: string; password: string }>): Promise<{ identity: VerifiedIdentity; expiresAt: string }> =>
+  request("/auth/register", { method: "POST", body: JSON.stringify(input) });
+
+export const loginWithPassword = (input: Readonly<{ email: string; password: string }>): Promise<{ identity: VerifiedIdentity; expiresAt: string }> =>
+  request("/auth/login", { method: "POST", body: JSON.stringify(input) });
 
 export const readDevelopmentMailbox = (email: string): Promise<{ messages: readonly Readonly<{ kind: "sign-in" | "invitation"; verificationUrl?: string; invitationUrl?: string; expiresAt: string }>[] }> =>
   request("/__dev/mailbox", { method: "POST", body: JSON.stringify({ email }) });

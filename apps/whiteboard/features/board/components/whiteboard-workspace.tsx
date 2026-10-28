@@ -334,7 +334,14 @@ const WhiteboardWorkspace = (): ReactElement => {
         {realtimeFeedback !== null && <WorkspaceFeedback kind="error" message={realtimeFeedback} onDismiss={() => setRealtimeFeedback(null)} />}
       </div>}
       {activeSession !== null && realtime.queuedEditCount > 0 && <Button onClick={realtime.retryQueuedEdits} size="sm" variant="outline">Retry queued edits</Button>}
-      <WorkspaceAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+      <WorkspaceAuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        onSuccess={(authIdentity) => {
+          setIdentity(authIdentity);
+          setSessionFeedback(null);
+        }}
+      />
       <WorkspaceSessionEndedDialog open={sessionEndedDialogOpen} onOpenChange={setSessionEndedDialogOpen} />
 
       <WorkspaceDialogs

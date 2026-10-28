@@ -36,6 +36,16 @@ const start = async () => {
     reserveHttpRequestRateLimit: () => Promise.resolve({ allowed: true, retryAfterSeconds: 60 }),
     requestMagicLink: () => Promise.resolve(),
     consumeMagicLink: () => Promise.resolve({ identityId: "owner-1", sessionToken: "token", expiresAt: new Date() }),
+    registerWithPassword: () => Promise.resolve({
+      identity: { id: "owner-1", email: "owner@example.test", createdAt: new Date(), verifiedAt: new Date() },
+      sessionToken: "token",
+      expiresAt: new Date()
+    }),
+    loginWithPassword: () => Promise.resolve({
+      identity: { id: "owner-1", email: "owner@example.test", createdAt: new Date(), verifiedAt: new Date() },
+      sessionToken: "token",
+      expiresAt: new Date()
+    }),
     getIdentityForSession: (token) => Promise.resolve(token === "owner" ? { id: "owner-1", email: "owner@example.test" } : null),
     revokeSession: () => Promise.resolve(),
     reserveInvitationRateLimit: () => Promise.resolve(true),

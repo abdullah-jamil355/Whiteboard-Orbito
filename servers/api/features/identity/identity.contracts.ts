@@ -1,4 +1,4 @@
-export type Identity = Readonly<{ id: string; email: string; createdAt: Date; verifiedAt: Date }>;
+export type Identity = Readonly<{ id: string; email: string; name?: string; createdAt: Date; verifiedAt: Date }>;
 
 export type MagicLinkChallenge = Readonly<{
   id: string;
@@ -44,6 +44,14 @@ export type IdentityRepository = Readonly<{
   createMagicLink: (input: Omit<MagicLinkChallenge, "id" | "consumedAt">) => Promise<void>;
   consumeMagicLink: (tokenHash: string, now: Date) => Promise<MagicLinkChallenge | null>;
   findOrCreateIdentity: (email: string, now: Date) => Promise<Identity>;
+  findIdentityByEmail: (email: string) => Promise<(Identity & { passwordHash?: string | undefined; passwordSalt?: string | undefined }) | null>;
+  createPasswordIdentity: (input: Readonly<{
+    email: string;
+    name: string;
+    passwordHash: string;
+    passwordSalt: string;
+    now: Date;
+  }>) => Promise<Identity>;
   getIdentityById: (identityId: string) => Promise<Identity | null>;
   createSession: (input: Omit<ServerSession, "id" | "revokedAt">) => Promise<void>;
   findSession: (tokenHash: string, now: Date) => Promise<ServerSession | null>;
@@ -82,7 +90,10 @@ export type IdentityServiceFailureCode =
   | "invalid_or_expired_link"
   | "storage_unavailable"
   | "delivery_unavailable"
-  | "google_account_mismatch";
+  | "google_account_mismatch"
+  | "email_already_registered"
+  | "invalid_credentials"
+  | "password_not_set";
 
 export class IdentityServiceFailure extends Error {
   constructor(readonly code: IdentityServiceFailureCode, readonly retryAfterSeconds?: number) {

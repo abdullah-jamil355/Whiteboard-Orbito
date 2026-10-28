@@ -20,6 +20,16 @@ const createTestServer = async (environment: string, host: string) => {
       expiresAt: new Date(Date.now() + 60_000)
     }),
     consumeMagicLink: () => Promise.resolve({ identityId: "identity-1", sessionToken: "s".repeat(43), expiresAt: new Date(Date.now() + 60_000) }),
+    registerWithPassword: () => Promise.resolve({
+      identity: { id: "identity-1", email: "owner@example.com", name: "Owner", createdAt: new Date(), verifiedAt: new Date() },
+      sessionToken: "s".repeat(43),
+      expiresAt: new Date(Date.now() + 60_000)
+    }),
+    loginWithPassword: () => Promise.resolve({
+      identity: { id: "identity-1", email: "owner@example.com", name: "Owner", createdAt: new Date(), verifiedAt: new Date() },
+      sessionToken: "s".repeat(43),
+      expiresAt: new Date(Date.now() + 60_000)
+    }),
     getIdentityForSession: () => Promise.resolve({ id: "identity-1", email: "owner@example.com" }),
     revokeSession: () => Promise.resolve(),
     reserveInvitationRateLimit: () => Promise.resolve(true),

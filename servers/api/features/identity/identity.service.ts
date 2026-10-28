@@ -3,12 +3,14 @@ import {
   addDuration,
   createOpaqueSecret,
   hashOpaqueSecret,
+  hashPassword,
   identityPolicy,
   isCredentialUsable,
-  normalizeEmail
+  normalizeEmail,
+  verifyPassword
 } from "./identity.rules.js";
 import { IdentityServiceFailure } from "./identity.contracts.js";
-import type { IdentityMailer, IdentityRepository, ServerSession } from "./identity.contracts.js";
+import type { Identity, IdentityMailer, IdentityRepository, ServerSession } from "./identity.contracts.js";
 import { createGoogleOAuthIntegration } from "../../integrations/index.js";
 import type { GoogleOAuthConfiguration, OutgoingEmail } from "../../integrations/index.js";
 
@@ -26,7 +28,9 @@ export type IdentityService = Readonly<{
   reserveHttpRequestRateLimit: (input: Readonly<{ sessionToken?: string; ipAddress: string }>) => Promise<Readonly<{ allowed: boolean; retryAfterSeconds: number }>>;
   requestMagicLink: (input: Readonly<{ email: string; ipAddress: string }>) => Promise<void>;
   consumeMagicLink: (token: string) => Promise<Readonly<{ identityId: string; sessionToken: string; expiresAt: Date }>>;
-  getIdentityForSession: (sessionToken: string | undefined) => Promise<Readonly<{ id: string; email: string }> | null>;
+  registerWithPassword: (input: Readonly<{ email: string; name: string; password: string }>) => Promise<Readonly<{ identity: Identity; sessionToken: string; expiresAt: Date }>>;
+  loginWithPassword: (input: Readonly<{ email: string; password: string }>) => Promise<Readonly<{ identity: Identity; sessionToken: string; expiresAt: Date }>>;
+  getIdentityForSession: (sessionToken: string | undefined) => Promise<Readonly<{ id: string; email: string; name?: string }> | null>;
   revokeSession: (sessionToken: string | undefined) => Promise<void>;
   reserveInvitationRateLimit: (input: Readonly<{ identityId: string; ipAddress: string }>) => Promise<boolean>;
   startGoogleMailConnect: (identityId: string, email: string) => Promise<string>;
@@ -161,6 +165,72 @@ export const createIdentityService = ({
     }
   };
 
+  const registerWithPassword: IdentityService["registerWithPassword"] = async ({ email, name, password }) => {
+    const normalizedEmail = normalizeEmail(email);
+    const trimmedName = name.trim();
+    const existing = await repository.findIdentityByEmail(normalizedEmail);
+    if (existing) throw new IdentityServiceFailure("email_already_registered");
+    const { hash, salt } = await hashPassword(password);
+    const now = new Date();
+    let identity: Identity;
+    try {
+      identity = await repository.createPasswordIdentity({
+        email: normalizedEmail,
+        name: trimmedName,
+        passwordHash: hash,
+        passwordSalt: salt,
+        now
+      });
+    } catch {
+      throw new IdentityServiceFailure("storage_unavailable");
+    }
+    const sessionToken = generateSecret();
+    const expiresAt = addDuration(now, identityPolicy.serverSessionLifetimeMs);
+    try {
+      await repository.createSession({
+        identityId: identity.id,
+        tokenHash: hashOpaqueSecret(sessionToken),
+        createdAt: now,
+        expiresAt
+      });
+      return Object.freeze({ identity, sessionToken, expiresAt });
+    } catch {
+      throw new IdentityServiceFailure("storage_unavailable");
+    }
+  };
+
+  const loginWithPassword: IdentityService["loginWithPassword"] = async ({ email, password }) => {
+    const normalizedEmail = normalizeEmail(email);
+    const record = await repository.findIdentityByEmail(normalizedEmail);
+    if (!record || !record.passwordHash || !record.passwordSalt) {
+      if (record && !record.passwordHash) throw new IdentityServiceFailure("password_not_set");
+      throw new IdentityServiceFailure("invalid_credentials");
+    }
+    const valid = await verifyPassword(password, record.passwordHash, record.passwordSalt);
+    if (!valid) throw new IdentityServiceFailure("invalid_credentials");
+    const now = new Date();
+    const sessionToken = generateSecret();
+    const expiresAt = addDuration(now, identityPolicy.serverSessionLifetimeMs);
+    try {
+      await repository.createSession({
+        identityId: record.id,
+        tokenHash: hashOpaqueSecret(sessionToken),
+        createdAt: now,
+        expiresAt
+      });
+      const identity: Identity = Object.freeze({
+        id: record.id,
+        email: record.email,
+        ...(record.name ? { name: record.name } : {}),
+        createdAt: record.createdAt,
+        verifiedAt: record.verifiedAt
+      });
+      return Object.freeze({ identity, sessionToken, expiresAt });
+    } catch {
+      throw new IdentityServiceFailure("storage_unavailable");
+    }
+  };
+
   const getIdentityForSession: IdentityService["getIdentityForSession"] = async (sessionToken) => {
     if (!sessionToken || sessionToken.length < 32 || sessionToken.length > 256) return null;
     let session: ServerSession | null;
@@ -172,7 +242,11 @@ export const createIdentityService = ({
     if (!session) return null;
     try {
       const identity = await repository.getIdentityById(session.identityId);
-      return identity ? Object.freeze({ id: identity.id, email: identity.email }) : null;
+      return identity ? Object.freeze({
+        id: identity.id,
+        email: identity.email,
+        ...(identity.name ? { name: identity.name } : {})
+      }) : null;
     } catch {
       throw new IdentityServiceFailure("storage_unavailable");
     }
@@ -261,5 +335,19 @@ export const createIdentityService = ({
     }
   };
 
-  return Object.freeze({ reserveHttpRequestRateLimit, requestMagicLink, consumeMagicLink, getIdentityForSession, revokeSession, reserveInvitationRateLimit, startGoogleMailConnect, finishGoogleMailConnect, getGoogleMailStatus, disconnectGoogleMail, sendAsGoogleMail });
+  return Object.freeze({
+    reserveHttpRequestRateLimit,
+    requestMagicLink,
+    consumeMagicLink,
+    registerWithPassword,
+    loginWithPassword,
+    getIdentityForSession,
+    revokeSession,
+    reserveInvitationRateLimit,
+    startGoogleMailConnect,
+    finishGoogleMailConnect,
+    getGoogleMailStatus,
+    disconnectGoogleMail,
+    sendAsGoogleMail
+  });
 };

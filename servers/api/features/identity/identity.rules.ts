@@ -1,4 +1,7 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+
+const scryptAsync = promisify(scrypt);
 
 export const identityPolicy = Object.freeze({
   magicLinkLifetimeMs: 10 * 60 * 1000,
@@ -39,3 +42,22 @@ export const isCredentialUsable = (
 
 export const addDuration = (now: Date, durationMs: number): Date =>
   new Date(now.getTime() + durationMs);
+
+export const hashPassword = async (
+  password: string,
+  salt = randomBytes(16).toString("hex")
+): Promise<{ hash: string; salt: string }> => {
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+  return { hash: derivedKey.toString("hex"), salt };
+};
+
+export const verifyPassword = async (
+  password: string,
+  hash: string,
+  salt: string
+): Promise<boolean> => {
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+  const hashBuffer = Buffer.from(hash, "hex");
+  if (derivedKey.length !== hashBuffer.length) return false;
+  return timingSafeEqual(derivedKey, hashBuffer);
+};

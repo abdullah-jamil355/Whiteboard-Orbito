@@ -33,6 +33,20 @@ const createFakeRepository = () => {
       identity ??= { id: "identity-1", email, createdAt: now, verifiedAt: now };
       return Promise.resolve(identity);
     },
+    findIdentityByEmail: (email) => {
+      if (identity && identity.email === email) {
+        return Promise.resolve({
+          ...identity,
+          passwordHash: (identity as Identity & { passwordHash?: string; passwordSalt?: string }).passwordHash,
+          passwordSalt: (identity as Identity & { passwordHash?: string; passwordSalt?: string }).passwordSalt
+        });
+      }
+      return Promise.resolve(null);
+    },
+    createPasswordIdentity: ({ email, name, passwordHash, passwordSalt, now }) => {
+      identity = Object.assign({ id: "identity-1", email, name, createdAt: now, verifiedAt: now }, { passwordHash, passwordSalt });
+      return Promise.resolve(identity);
+    },
     getIdentityById: (identityId) => Promise.resolve(identity?.id === identityId ? identity : null),
     createSession: (input) => {
       session = { ...input, id: "session-1", revokedAt: null };
@@ -153,4 +167,63 @@ void test("authenticated sessions can be looked up and revoked", async () => {
   });
   await service.revokeSession("s".repeat(43));
   assert.equal(await service.getIdentityForSession("s".repeat(43)), null);
+});
+
+void test("registers a new user with password and logs in successfully", async () => {
+  const fake = createFakeRepository();
+  const service = createIdentityService({
+    repository: fake.repository,
+    mailer: { sendMagicLink: () => Promise.resolve() },
+    webOrigin: "http://localhost:3100",
+    rateLimitKey: "development-test-key",
+    generateSecret: () => "s".repeat(43)
+  });
+
+  const registered = await service.registerWithPassword({
+    email: "user@example.com",
+    name: "Test User",
+    password: "Password123!"
+  });
+  assert.equal(registered.identity.email, "user@example.com");
+  assert.equal(registered.identity.name, "Test User");
+
+  const loggedIn = await service.loginWithPassword({
+    email: "user@example.com",
+    password: "Password123!"
+  });
+  assert.equal(loggedIn.identity.id, registered.identity.id);
+  assert.equal(loggedIn.identity.email, "user@example.com");
+  assert.equal(loggedIn.identity.name, "Test User");
+});
+
+void test("rejects registration when email is already registered", async () => {
+  const fake = createFakeRepository();
+  const service = createIdentityService({
+    repository: fake.repository,
+    mailer: { sendMagicLink: () => Promise.resolve() },
+    webOrigin: "http://localhost:3100",
+    rateLimitKey: "development-test-key"
+  });
+
+  await service.registerWithPassword({ email: "user@example.com", name: "User", password: "Password123!" });
+  await assert.rejects(
+    () => service.registerWithPassword({ email: "user@example.com", name: "User Two", password: "Password123!" }),
+    /email_already_registered/
+  );
+});
+
+void test("rejects login with invalid password", async () => {
+  const fake = createFakeRepository();
+  const service = createIdentityService({
+    repository: fake.repository,
+    mailer: { sendMagicLink: () => Promise.resolve() },
+    webOrigin: "http://localhost:3100",
+    rateLimitKey: "development-test-key"
+  });
+
+  await service.registerWithPassword({ email: "user@example.com", name: "User", password: "Password123!" });
+  await assert.rejects(
+    () => service.loginWithPassword({ email: "user@example.com", password: "WrongPassword" }),
+    /invalid_credentials/
+  );
 });

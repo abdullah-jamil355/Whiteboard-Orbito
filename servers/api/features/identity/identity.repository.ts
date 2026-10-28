@@ -3,8 +3,14 @@ import type { Identity, IdentityRepository, MagicLinkChallenge, ServerSession } 
 import { identityPolicy } from "./identity.rules.js";
 import { WbGoogleMailAccountModel, WbGoogleMailStateModel, WbIdentityModel, WbMagicLinkModel, WbMagicLinkRateLimitModel, WbSessionModel } from "./identity.model.js";
 
-const mapIdentity = (record: { _id: MongoObjectId; email: string; createdAt: Date; verifiedAt: Date }): Identity =>
-  Object.freeze({ id: objectIdToString(record._id), email: record.email, createdAt: record.createdAt, verifiedAt: record.verifiedAt });
+const mapIdentity = (record: { _id: MongoObjectId; email: string; name?: string; createdAt: Date; verifiedAt: Date }): Identity =>
+  Object.freeze({
+    id: objectIdToString(record._id),
+    email: record.email,
+    ...(record.name ? { name: record.name } : {}),
+    createdAt: record.createdAt,
+    verifiedAt: record.verifiedAt
+  });
 
 const mapChallenge = (record: {
   _id: MongoObjectId;
@@ -109,6 +115,26 @@ export const createIdentityRepository = (): IdentityRepository => Object.freeze(
       if (!existing) throw error;
       return mapIdentity(existing);
     }
+  },
+  findIdentityByEmail: async (email) => {
+    const record = await WbIdentityModel.findOne({ email }).exec();
+    if (!record) return null;
+    return Object.freeze({
+      ...mapIdentity(record),
+      passwordHash: record.passwordHash,
+      passwordSalt: record.passwordSalt
+    });
+  },
+  createPasswordIdentity: async ({ email, name, passwordHash, passwordSalt, now }) => {
+    const record = await WbIdentityModel.create({
+      email,
+      name,
+      passwordHash,
+      passwordSalt,
+      createdAt: now,
+      verifiedAt: now
+    });
+    return mapIdentity(record);
   },
   getIdentityById: async (identityId) => {
     if (!isObjectIdString(identityId)) return null;
