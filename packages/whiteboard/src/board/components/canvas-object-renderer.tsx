@@ -37,11 +37,17 @@ const directionalOffset = (center: Coordinate, direction: ConnectionDirection): 
   }
 };
 
-const resolveAttachedEndpoint = (endpoint: ConnectorEndpoint, shapes: readonly ShapeObject[]): ConnectorEndpoint => {
+const resolveAttachedEndpoint = (
+  endpoint: ConnectorEndpoint,
+  shapes: readonly ShapeObject[],
+  selectedShapeId?: string | null,
+  resizeGeometry?: ShapeObject["geometry"] | null
+): ConnectorEndpoint => {
   if (endpoint.shapeId === undefined || endpoint.connectionPoint === undefined) return endpoint;
   const shape = shapes.find((item) => item.id === endpoint.shapeId);
   if (shape === undefined) return endpoint;
-  return { ...endpoint, ...shapeConnectionCoordinate(shape.geometry, endpoint.connectionPoint, shape.shape) };
+  const geometry = shape.id === selectedShapeId && resizeGeometry != null ? resizeGeometry : shape.geometry;
+  return { ...endpoint, ...shapeConnectionCoordinate(geometry, endpoint.connectionPoint, shape.shape) };
 };
 
 const directionArrowPath = (direction: ConnectionDirection): string => {
@@ -85,8 +91,8 @@ const CanvasObjectRenderer = ({
   }
 
   if (object.type === "line" || object.type === "arrow") {
-    const start = resolveAttachedEndpoint(object.start, shapes);
-    const end = resolveAttachedEndpoint(object.end, shapes);
+    const start = resolveAttachedEndpoint(object.start, shapes, selectedShapeId, resizeGeometry);
+    const end = resolveAttachedEndpoint(object.end, shapes, selectedShapeId, resizeGeometry);
     const points = strokePointsAttribute(object.waypoints && object.waypoints.length > 0 ? [start, ...object.waypoints, end] : [start, end]);
     return (
       <g aria-label={object.type === "line" ? "Line" : "Arrow"} key={object.id} onFocus={() => onFocusObject(object.id)} role="button" tabIndex={selectedTool === "select" || selectedTool === "waypoints" ? 0 : -1}>
@@ -97,8 +103,8 @@ const CanvasObjectRenderer = ({
   }
 
   if (object.type === "connector") {
-    const start = resolveAttachedEndpoint(object.start, shapes);
-    const end = resolveAttachedEndpoint(object.end, shapes);
+    const start = resolveAttachedEndpoint(object.start, shapes, selectedShapeId, resizeGeometry);
+    const end = resolveAttachedEndpoint(object.end, shapes, selectedShapeId, resizeGeometry);
     const points = strokePointsAttribute(connectorRoutePoints(start, end, object.routing ?? "orthogonal", object.waypoints));
     return (
       <g aria-label="Connector" key={object.id} onFocus={() => onFocusObject(object.id)} role="button" tabIndex={selectedTool === "select" || selectedTool === "waypoints" ? 0 : -1}>

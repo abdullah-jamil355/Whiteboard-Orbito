@@ -125,6 +125,51 @@ export const shapeConnectionCoordinate = (
     }
   }
 
+  if (shapeKind === "pentagon") {
+    switch (point) {
+      case "top": return { x: centerX, y };
+      case "right": return { x: x + width * 0.925, y: centerY };
+      case "bottom": return { x: centerX, y: y + height * 0.905 };
+      case "left": return { x: x + width * 0.075, y: centerY };
+    }
+  }
+
+  if (shapeKind === "octagon") {
+    switch (point) {
+      case "top": return { x: centerX, y: y + height * 0.07 };
+      case "right": return { x: x + width * 0.93, y: centerY };
+      case "bottom": return { x: centerX, y: y + height * 0.93 };
+      case "left": return { x: x + width * 0.07, y: centerY };
+    }
+  }
+
+  if (shapeKind === "cloud") {
+    switch (point) {
+      case "top": return { x: centerX, y: y + height * 0.06 };
+      case "right": return { x: x + width * 0.95, y: centerY };
+      case "bottom": return { x: centerX, y: y + height * 0.94 };
+      case "left": return { x: x + width * 0.05, y: centerY };
+    }
+  }
+
+  if (shapeKind === "star") {
+    switch (point) {
+      case "top": return { x: centerX, y };
+      case "right": return { x: x + width * 0.97, y: centerY };
+      case "bottom": return { x: centerX, y: y + height * 0.90 };
+      case "left": return { x: x + width * 0.03, y: centerY };
+    }
+  }
+
+  if (shapeKind === "speech-bubble") {
+    switch (point) {
+      case "top": return { x: centerX, y };
+      case "right": return { x: right, y: y + height * 0.39 };
+      case "bottom": return { x: centerX, y: y + height * 0.78 };
+      case "left": return { x, y: y + height * 0.39 };
+    }
+  }
+
   if (shapeKind === "trapezoid") {
     switch (point) {
       case "top": return { x: centerX, y };

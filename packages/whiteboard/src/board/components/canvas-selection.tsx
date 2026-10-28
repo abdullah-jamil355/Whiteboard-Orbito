@@ -119,9 +119,11 @@ type BoardObjectOutlineProps = Readonly<{
   className: string;
   geometry?: ShapeObject["geometry"] | undefined;
   shapes?: readonly ShapeObject[];
+  selectedShapeId?: string | null;
+  resizeGeometry?: ShapeObject["geometry"] | null;
 }>;
 
-export const BoardObjectOutline = ({ object, className, geometry, shapes }: BoardObjectOutlineProps): ReactElement | null => {
+export const BoardObjectOutline = ({ object, className, geometry, shapes, selectedShapeId, resizeGeometry }: BoardObjectOutlineProps): ReactElement | null => {
   const shared = {
     className,
     fill: "none",
@@ -132,7 +134,8 @@ export const BoardObjectOutline = ({ object, className, geometry, shapes }: Boar
     if (shapes === undefined || endpoint.shapeId === undefined || endpoint.connectionPoint === undefined) return endpoint;
     const shape = shapes.find((item) => item.id === endpoint.shapeId);
     if (shape === undefined) return endpoint;
-    return { ...endpoint, ...shapeConnectionCoordinate(shape.geometry, endpoint.connectionPoint, shape.shape) };
+    const geom = shape.id === selectedShapeId && resizeGeometry != null ? resizeGeometry : shape.geometry;
+    return { ...endpoint, ...shapeConnectionCoordinate(geom, endpoint.connectionPoint, shape.shape) };
   };
   if (object.type === "stroke") {
     return <polyline {...shared} points={strokePointsAttribute(object.points)} strokeLinecap="round" strokeLinejoin="round" />;

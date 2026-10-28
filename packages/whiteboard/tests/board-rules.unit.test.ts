@@ -81,3 +81,11 @@ void test("computes exact slanted border connection points for parallelogram and
   assert.deepEqual(shapeConnectionCoordinate(geometry, "bottom", "parallelogram"), { x: 39, y: 100 });
 });
 
+void test("computes exact perimeter connection points for pentagon with zero gap", () => {
+  const geometry = { x: 0, y: 0, width: 100, height: 100 };
+  assert.deepEqual(shapeConnectionCoordinate(geometry, "top", "pentagon"), { x: 50, y: 0 });
+  assert.deepEqual(shapeConnectionCoordinate(geometry, "right", "pentagon"), { x: 92.5, y: 50 });
+  assert.deepEqual(shapeConnectionCoordinate(geometry, "bottom", "pentagon"), { x: 50, y: 90.5 });
+  assert.deepEqual(shapeConnectionCoordinate(geometry, "left", "pentagon"), { x: 7.5, y: 50 });
+});
+

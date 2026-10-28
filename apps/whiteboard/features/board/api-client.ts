@@ -33,7 +33,8 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
       credentials: "include",
       headers: { ...(init?.body ? { "Content-Type": "application/json" } : {}), ...init?.headers }
     });
-  } catch {
+  } catch (err) {
+    console.error(`[API FETCH ERROR] Failed to fetch ${path} from ${apiOrigin}:`, err);
     throw new Error("Whiteboard API is unreachable. Check that it is running and API WEB_ORIGIN matches this app's exact origin.");
   }
   if (!response.ok) {

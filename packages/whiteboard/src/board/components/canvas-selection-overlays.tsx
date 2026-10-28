@@ -36,13 +36,13 @@ export const CanvasSelectionOverlays = ({
       const object = objects.find((item) => item.id === id);
       if (object === undefined) return null;
       const geometry = object.id === selectedShapeId && resizeGeometry !== null ? resizeGeometry : undefined;
-      return <BoardObjectOutline className="wb-object-selection-outline" geometry={geometry} key={`selected-${id}`} object={object} shapes={shapes} />;
+      return <BoardObjectOutline className="wb-object-selection-outline" geometry={geometry} key={`selected-${id}`} object={object} resizeGeometry={resizeGeometry} selectedShapeId={selectedShapeId} shapes={shapes} />;
     })}
     {focusedObjectId !== null && (() => {
       const object = objects.find((item) => item.id === focusedObjectId);
       if (object === undefined) return null;
       const geometry = object.id === selectedShapeId && resizeGeometry !== null ? resizeGeometry : undefined;
-      return <BoardObjectOutline className="wb-keyboard-focus-ring" geometry={geometry} key={`focus-${focusedObjectId}`} object={object} shapes={shapes} />;
+      return <BoardObjectOutline className="wb-keyboard-focus-ring" geometry={geometry} key={`focus-${focusedObjectId}`} object={object} resizeGeometry={resizeGeometry} selectedShapeId={selectedShapeId} shapes={shapes} />;
     })()}
     {selectionBox !== null && (
       <rect
