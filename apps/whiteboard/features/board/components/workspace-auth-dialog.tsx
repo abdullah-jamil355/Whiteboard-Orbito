@@ -4,7 +4,7 @@ import { useState, type ReactElement } from "react";
 import { Button } from "@workspace/ui/primitives/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from "@workspace/ui/primitives/dialog";
 import { Input } from "@workspace/ui/primitives/input";
-import { loginWithPassword, registerWithPassword, requestSignInLink, type VerifiedIdentity } from "../api-client";
+import { loginWithPassword, registerWithPassword, type VerifiedIdentity } from "../api-client";
 
 type AuthDialogProps = Readonly<{
   open: boolean;
@@ -12,7 +12,7 @@ type AuthDialogProps = Readonly<{
   onSuccess?: (identity: VerifiedIdentity) => void;
 }>;
 
-type AuthMode = "login" | "register" | "magic-link";
+type AuthMode = "login" | "register";
 
 export const WorkspaceAuthDialog = ({ open, onOpenChange, onSuccess }: AuthDialogProps): ReactElement => {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -90,28 +90,11 @@ export const WorkspaceAuthDialog = ({ open, onOpenChange, onSuccess }: AuthDialo
     }
   };
 
-  const handleMagicLink = async (): Promise<void> => {
-    if (!email.trim()) return;
-    setBusy(true);
-    setMessage(null);
-    setIsError(false);
-    try {
-      await requestSignInLink(email.trim());
-      setIsError(false);
-      setMessage("If this address can sign in, a verification link has been sent to your inbox.");
-    } catch (error) {
-      setIsError(true);
-      setMessage(error instanceof Error ? error.message : "Could not request a sign-in link.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { onOpenChange(nextOpen); if (!nextOpen) resetForm(); }}>
       <DialogContent aria-describedby="wb-auth-description" aria-labelledby="wb-auth-title" className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2 border-b border-border pb-3">
+          <div className="flex items-center gap-4 border-b border-border pb-3">
             <button
               className={`text-sm font-semibold pb-1 border-b-2 transition-colors ${mode === "login" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
               onClick={() => switchMode("login")}
@@ -126,23 +109,14 @@ export const WorkspaceAuthDialog = ({ open, onOpenChange, onSuccess }: AuthDialo
             >
               Create Account
             </button>
-            <button
-              className={`text-sm font-semibold pb-1 border-b-2 transition-colors ml-auto text-xs ${mode === "magic-link" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-              onClick={() => switchMode("magic-link")}
-              type="button"
-            >
-              Magic Link
-            </button>
           </div>
           <h2 className="text-lg font-semibold pt-2" id="wb-auth-title">
-            {mode === "login" && "Sign in to Orbito"}
-            {mode === "register" && "Create your Orbito account"}
-            {mode === "magic-link" && "Sign in with Magic Link"}
+            {mode === "login" ? "Sign in to Orbito" : "Create your Orbito account"}
           </h2>
           <p className="text-sm text-muted-foreground" id="wb-auth-description">
-            {mode === "login" && "Enter your email and password to access your whiteboards."}
-            {mode === "register" && "Enter your details to create an account and start collaborating."}
-            {mode === "magic-link" && "We will send a one-time sign-in link to your email."}
+            {mode === "login"
+              ? "Enter your email and password to access your whiteboards."
+              : "Enter your details to create an account and start collaborating."}
           </p>
         </DialogHeader>
 
@@ -151,8 +125,7 @@ export const WorkspaceAuthDialog = ({ open, onOpenChange, onSuccess }: AuthDialo
           onSubmit={(event) => {
             event.preventDefault();
             if (mode === "login") void handleLogin();
-            else if (mode === "register") void handleRegister();
-            else void handleMagicLink();
+            else void handleRegister();
           }}
         >
           {mode === "register" && (
@@ -187,22 +160,20 @@ export const WorkspaceAuthDialog = ({ open, onOpenChange, onSuccess }: AuthDialo
             />
           </label>
 
-          {mode !== "magic-link" && (
-            <label className="flex flex-col gap-1 text-sm font-medium">
-              <span>Password</span>
-              <Input
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                disabled={busy}
-                maxLength={128}
-                minLength={6}
-                onChange={(event) => setPassword(event.currentTarget.value)}
-                placeholder="••••••••"
-                required
-                type="password"
-                value={password}
-              />
-            </label>
-          )}
+          <label className="flex flex-col gap-1 text-sm font-medium">
+            <span>Password</span>
+            <Input
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              disabled={busy}
+              maxLength={128}
+              minLength={6}
+              onChange={(event) => setPassword(event.currentTarget.value)}
+              placeholder="••••••••"
+              required
+              type="password"
+              value={password}
+            />
+          </label>
 
           {mode === "register" && (
             <label className="flex flex-col gap-1 text-sm font-medium">
@@ -230,23 +201,35 @@ export const WorkspaceAuthDialog = ({ open, onOpenChange, onSuccess }: AuthDialo
             </p>
           )}
 
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+            {mode === "login" ? (
+              <span>
+                Don&apos;t have an account?{" "}
+                <button className="underline text-primary hover:text-primary/80" onClick={() => switchMode("register")} type="button">
+                  Create an account
+                </button>
+              </span>
+            ) : (
+              <span>
+                Already have an account?{" "}
+                <button className="underline text-primary hover:text-primary/80" onClick={() => switchMode("login")} type="button">
+                  Sign In
+                </button>
+              </span>
+            )}
+          </div>
+
           <DialogFooter className="mt-2 flex items-center justify-between gap-2">
             <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
               Cancel
             </Button>
-            {mode === "login" && (
+            {mode === "login" ? (
               <Button disabled={busy || !email.trim() || !password} type="submit">
                 {busy ? "Signing in…" : "Sign In"}
               </Button>
-            )}
-            {mode === "register" && (
+            ) : (
               <Button disabled={busy || !email.trim() || !name.trim() || !password} type="submit">
                 {busy ? "Creating account…" : "Create Account"}
-              </Button>
-            )}
-            {mode === "magic-link" && (
-              <Button disabled={busy || !email.trim()} type="submit">
-                {busy ? "Sending…" : "Send Magic Link"}
               </Button>
             )}
           </DialogFooter>

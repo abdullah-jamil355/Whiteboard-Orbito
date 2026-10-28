@@ -136,6 +136,16 @@ export const createIdentityRepository = (): IdentityRepository => Object.freeze(
     });
     return mapIdentity(record);
   },
+  setPasswordForIdentity: async ({ identityId, name, passwordHash, passwordSalt }) => {
+    if (!isObjectIdString(identityId)) throw new Error("Invalid identity ID.");
+    const record = await WbIdentityModel.findOneAndUpdate(
+      { _id: objectIdFromString(identityId) },
+      { $set: { name, passwordHash, passwordSalt } },
+      { returnDocument: "after" }
+    ).exec();
+    if (!record) throw new Error("Identity not found.");
+    return mapIdentity(record);
+  },
   getIdentityById: async (identityId) => {
     if (!isObjectIdString(identityId)) return null;
     const record = await WbIdentityModel.findOne({ _id: objectIdFromString(identityId), verifiedAt: { $type: "date" } }).exec();

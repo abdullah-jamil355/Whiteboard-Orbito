@@ -55,9 +55,6 @@ export const getVerifiedIdentity = async (): Promise<VerifiedIdentity | null> =>
   }
 };
 
-export const requestSignInLink = (email: string): Promise<{ message: string }> =>
-  request("/auth/magic-links", { method: "POST", body: JSON.stringify({ email }) });
-
 export const registerWithPassword = (input: Readonly<{ email: string; name: string; password: string }>): Promise<{ identity: VerifiedIdentity; expiresAt: string }> =>
   request("/auth/register", { method: "POST", body: JSON.stringify(input) });
 
@@ -101,9 +98,6 @@ export const removeSessionParticipant = (sessionId: string, identityId: string):
 
 export const acceptInvitation = (token: string, displayName: string): Promise<{ membership: Readonly<{ sessionId: string; role: "editor" | "viewer"; sessionTitle: string }> }> =>
   request("/invitations/accept", { method: "POST", body: JSON.stringify({ token, displayName }) });
-
-export const consumeSignInLink = (token: string): Promise<{ identityId: string; expiresAt: string }> =>
-  request("/auth/magic-links/consume", { method: "POST", body: JSON.stringify({ token }) });
 
 export const toLocalSession = (session: ApiBoardSession): BoardSession => ({
   id: session.id,

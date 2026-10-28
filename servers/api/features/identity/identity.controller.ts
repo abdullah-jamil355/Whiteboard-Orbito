@@ -62,7 +62,7 @@ const failureResponse = (response: Response, error: unknown): void => {
     google_account_mismatch: { status: HTTP_STATUS.badRequest, code: ERROR_CODES.validation, message: "Connect the Gmail address used to sign in to Whiteboard." },
     email_already_registered: { status: HTTP_STATUS.conflict, code: ERROR_CODES.validation, message: "An account with this email address already exists." },
     invalid_credentials: { status: HTTP_STATUS.unauthorized, code: ERROR_CODES.authenticationRequired, message: "Invalid email or password." },
-    password_not_set: { status: HTTP_STATUS.badRequest, code: ERROR_CODES.validation, message: "This account was created without a password. Please sign in via magic link." },
+    password_not_set: { status: HTTP_STATUS.badRequest, code: ERROR_CODES.validation, message: "This account has no password yet. Please use Create Account to set your password." },
     storage_unavailable: { status: HTTP_STATUS.serviceUnavailable, code: ERROR_CODES.serviceUnavailable, message: ERROR_MESSAGES.serviceUnavailable },
     delivery_unavailable: { status: HTTP_STATUS.serviceUnavailable, code: ERROR_CODES.serviceUnavailable, message: ERROR_MESSAGES.serviceUnavailable }
   }[error.code];

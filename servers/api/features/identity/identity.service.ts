@@ -169,18 +169,27 @@ export const createIdentityService = ({
     const normalizedEmail = normalizeEmail(email);
     const trimmedName = name.trim();
     const existing = await repository.findIdentityByEmail(normalizedEmail);
-    if (existing) throw new IdentityServiceFailure("email_already_registered");
+    if (existing && existing.passwordHash) throw new IdentityServiceFailure("email_already_registered");
     const { hash, salt } = await hashPassword(password);
     const now = new Date();
     let identity: Identity;
     try {
-      identity = await repository.createPasswordIdentity({
-        email: normalizedEmail,
-        name: trimmedName,
-        passwordHash: hash,
-        passwordSalt: salt,
-        now
-      });
+      if (existing) {
+        identity = await repository.setPasswordForIdentity({
+          identityId: existing.id,
+          name: trimmedName,
+          passwordHash: hash,
+          passwordSalt: salt
+        });
+      } else {
+        identity = await repository.createPasswordIdentity({
+          email: normalizedEmail,
+          name: trimmedName,
+          passwordHash: hash,
+          passwordSalt: salt,
+          now
+        });
+      }
     } catch {
       throw new IdentityServiceFailure("storage_unavailable");
     }

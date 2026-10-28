@@ -47,6 +47,13 @@ const createFakeRepository = () => {
       identity = Object.assign({ id: "identity-1", email, name, createdAt: now, verifiedAt: now }, { passwordHash, passwordSalt });
       return Promise.resolve(identity);
     },
+    setPasswordForIdentity: ({ name, passwordHash, passwordSalt }) => {
+      if (identity) {
+        identity = Object.assign({}, identity, { name, passwordHash, passwordSalt });
+        return Promise.resolve(identity);
+      }
+      return Promise.reject(new Error("Identity not found."));
+    },
     getIdentityById: (identityId) => Promise.resolve(identity?.id === identityId ? identity : null),
     createSession: (input) => {
       session = { ...input, id: "session-1", revokedAt: null };
@@ -226,4 +233,40 @@ void test("rejects login with invalid password", async () => {
     () => service.loginWithPassword({ email: "user@example.com", password: "WrongPassword" }),
     /invalid_credentials/
   );
+});
+
+void test("allows upgrading an existing passwordless account by registering a password", async () => {
+  const fake = createFakeRepository();
+  const service = createIdentityService({
+    repository: fake.repository,
+    mailer: { sendMagicLink: () => Promise.resolve() },
+    webOrigin: "http://localhost:3100",
+    rateLimitKey: "development-test-key",
+    generateSecret: () => "s".repeat(43)
+  });
+
+  // Old account created previously without password
+  await fake.repository.findOrCreateIdentity("legacy@example.com", new Date());
+
+  // Trying to log in before setting password gives helpful error
+  await assert.rejects(
+    () => service.loginWithPassword({ email: "legacy@example.com", password: "Password123!" }),
+    /password_not_set/
+  );
+
+  // Registering with that email sets the password and claims the account!
+  const upgraded = await service.registerWithPassword({
+    email: "legacy@example.com",
+    name: "Legacy User",
+    password: "Password123!"
+  });
+  assert.equal(upgraded.identity.email, "legacy@example.com");
+
+  // Now logging in works perfectly!
+  const loggedIn = await service.loginWithPassword({
+    email: "legacy@example.com",
+    password: "Password123!"
+  });
+  assert.equal(loggedIn.identity.email, "legacy@example.com");
+  assert.equal(loggedIn.identity.name, "Legacy User");
 });

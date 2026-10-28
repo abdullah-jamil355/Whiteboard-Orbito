@@ -52,6 +52,12 @@ export type IdentityRepository = Readonly<{
     passwordSalt: string;
     now: Date;
   }>) => Promise<Identity>;
+  setPasswordForIdentity: (input: Readonly<{
+    identityId: string;
+    name: string;
+    passwordHash: string;
+    passwordSalt: string;
+  }>) => Promise<Identity>;
   getIdentityById: (identityId: string) => Promise<Identity | null>;
   createSession: (input: Omit<ServerSession, "id" | "revokedAt">) => Promise<void>;
   findSession: (tokenHash: string, now: Date) => Promise<ServerSession | null>;

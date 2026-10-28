@@ -2,9 +2,10 @@
 
 import { useEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { Button } from "@workspace/ui/primitives/button";
 import { Input } from "@workspace/ui/primitives/input";
-import { acceptInvitation, getVerifiedIdentity, readDevelopmentMailbox, requestSignInLink, type VerifiedIdentity } from "../../../features/board/api-client";
+import { acceptInvitation, getVerifiedIdentity, type VerifiedIdentity } from "../../../features/board/api-client";
 
 const InviteAcceptancePage = (): ReactElement => {
   const [token, setToken] = useState<string | null>(null);
@@ -29,30 +30,20 @@ const InviteAcceptancePage = (): ReactElement => {
     });
   }, []);
 
-  const requestSignIn = async (): Promise<void> => {
-    if (busy || !token) return;
-    setBusy(true); setMessage("Requesting a one-time sign-in link…");
-    try {
-      window.sessionStorage.setItem("wb_invite_accept_after_auth", "true");
-      await requestSignInLink(email);
-      const inbox = await readDevelopmentMailbox(email);
-      const signInMessage = [...inbox.messages].reverse().find((item) => item.kind === "sign-in");
-      if (signInMessage?.verificationUrl) setSignInUrl(signInMessage.verificationUrl);
-      setMessage("Verify this email address, then return here to accept the invitation.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not request sign-in."); }
-    finally { setBusy(false); }
-  };
-
   const accept = async (): Promise<void> => {
     if (!token || !identity || displayName.trim().length === 0 || busy) return;
-    setBusy(true); setMessage("Accepting invitation…");
+    setBusy(true);
+    setMessage("Accepting invitation…");
     try {
       const { membership } = await acceptInvitation(token, displayName.trim());
       window.sessionStorage.removeItem("wb_pending_invitation_token");
       window.sessionStorage.removeItem("wb_invite_accept_after_auth");
       window.sessionStorage.setItem("wb_active_session_id", membership.sessionId);
       window.location.replace("/");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not accept the invitation."); setBusy(false); }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not accept the invitation.");
+      setBusy(false);
+    }
   };
 
   return (
@@ -61,13 +52,21 @@ const InviteAcceptancePage = (): ReactElement => {
         <h1 className="text-lg font-semibold">Join Orbito session</h1>
         <p className="mt-2 text-sm text-muted-foreground">{message}</p>
         {token && !identity && (
-          <div className="mt-4 space-y-3">
-            <label className="block text-sm">
-              Invited email
-              <Input autoComplete="email" maxLength={254} onChange={(event) => setEmail(event.currentTarget.value)} type="email" value={email} />
-            </label>
-            <Button disabled={busy || email.trim().length === 0} onClick={() => void requestSignIn()}>Send sign-in link</Button>
-            {signInUrl && <p className="text-sm"><a className="underline" href={signInUrl}>Open local development inbox link</a></p>}
+          <div className="mt-4 flex flex-col gap-3">
+            <Link
+              className="w-full"
+              href={"/login" as Route}
+              onClick={() => window.sessionStorage.setItem("wb_invite_accept_after_auth", "true")}
+            >
+              <Button className="w-full">Sign In to Continue</Button>
+            </Link>
+            <Link
+              className="w-full"
+              href={"/register" as Route}
+              onClick={() => window.sessionStorage.setItem("wb_invite_accept_after_auth", "true")}
+            >
+              <Button className="w-full" variant="outline">Create Account</Button>
+            </Link>
           </div>
         )}
         {token && identity && (
