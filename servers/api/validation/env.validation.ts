@@ -5,7 +5,7 @@ export const apiEnvironmentSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
   API_HOST: z.string().min(1),
   API_PORT: z.coerce.number().int().min(1).max(65_535),
-  WEB_ORIGIN: z.url(),
+  WEB_ORIGIN: z.string().transform((val) => val.replace(/\/+$/, "")).pipe(z.url()),
   MONGODB_URI: z.string().min(1).optional(),
   REALTIME_HOST: z.string().min(1).optional(),
   REALTIME_PORT: z.coerce.number().int().min(1).max(65_535).optional(),
@@ -57,9 +57,6 @@ export const apiEnvironmentSchema = z.object({
       path: ["MONGODB_URI"],
       message: "MONGODB_URI is required in production for identity persistence."
     });
-  }
-  if (environment.NODE_ENV === "production" && (environment.REALTIME_HOST === undefined || environment.REALTIME_PORT === undefined)) {
-    context.addIssue({ code: "custom", path: ["REALTIME_HOST"], message: "REALTIME_HOST and REALTIME_PORT are required in production." });
   }
 }) satisfies z.ZodType<ValidatedApiEnvironment>;
 

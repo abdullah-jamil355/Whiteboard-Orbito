@@ -23,7 +23,7 @@ const database = createMongoDbIntegration({
   logger,
   ...(config.mongodbUri ? { uri: config.mongodbUri } : {})
 });
-const realtime = config.mongodbUri && config.realtimeHost && config.realtimePort
+const realtime = config.mongodbUri
   ? createRealtimeServer({
     config,
     logger,

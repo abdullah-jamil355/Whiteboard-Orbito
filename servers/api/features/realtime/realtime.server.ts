@@ -33,7 +33,7 @@ const readActionId = (value: unknown): string | undefined => {
   return typeof command.actionId === "string" && actionIdPattern.test(command.actionId) ? command.actionId : undefined;
 };
 export const createRealtimeServer = ({ config, logger, identity, sessions, invitations }: Dependencies) => {
-  if (!config.realtimeHost || !config.realtimePort) throw new Error("Realtime host and port are required.");
+  if (config.realtimePort && !config.realtimeHost) throw new Error("Realtime host is required when realtime port is specified.");
   const timers = new Map<string, NodeJS.Timeout>();
   const connections = new Map<string, Connection<RealtimeContext>>();
   const commandWindows = new Map<string, { startedAt: number; count: number }>();
@@ -50,8 +50,8 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     return next;
   };
   const server = new Server<RealtimeContext>({
-    address: config.realtimeHost,
-    port: config.realtimePort,
+    ...(config.realtimeHost ? { address: config.realtimeHost } : {}),
+    ...(config.realtimePort ? { port: config.realtimePort } : {}),
     stopOnSignals: false,
     quiet: true,
     websocketOptions: { maxPayload: 1_048_576 },
