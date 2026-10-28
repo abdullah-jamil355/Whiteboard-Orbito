@@ -35,10 +35,12 @@ export const WorkspaceInvitations = ({ sessionId, ownerConnected }: Props): Reac
     try {
       const result = await createInvitation(sessionId, { email: email.trim(), role: role as "editor" | "viewer" });
       setEmail("");
-      if (result.invitationUrl) {
+      if (!result.delivered && result.invitationUrl) {
         setGeneratedLink(result.invitationUrl);
+      } else {
+        setGeneratedLink(null);
       }
-      setMessage(result.delivered ? "Invitation emailed. Direct invite link also ready below:" : "Invitation link generated! Copy and share the link below with your participant:");
+      setMessage(result.message);
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create invitation.");

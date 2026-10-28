@@ -45,8 +45,8 @@ export const createInvitationController = ({ identity, invitations }: Dependenci
         response.setHeader("Cache-Control", "no-store");
         response.status(HTTP_STATUS.accepted).json({
           message: result?.delivered
-            ? `Invitation email sent to ${input.data.email}.`
-            : `Invitation created for ${input.data.email}. (Configure GMAIL_USER on server for direct emails)`,
+            ? `Invitation email sent to ${input.data.email}! Check inbox or spam folder.`
+            : `Could not send email to ${input.data.email} (${result?.deliveryError ?? "Delivery failed"}).`,
           invitationUrl: result?.invitationUrl,
           delivered: result?.delivered ?? false
         });

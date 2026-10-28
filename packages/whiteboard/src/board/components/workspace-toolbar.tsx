@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties, type ReactElement } from "react";
 import { CornerDownRight, Eraser, MousePointer2, Pencil, Redo2, Shapes, StickyNote, Type, Undo2, Waypoints } from "lucide-react";
 import { Button } from "@workspace/ui/primitives/button";
-import { ARROW_HEADS, CONNECTOR_ROUTINGS, isLineWeight, isShapeTool, STICKY_NOTE_COLORS, WHITEBOARD_PALETTE, type ArrowHead, type ConnectorRouting, type LineWeight, type StickyNoteShape, type TextObject, type WhiteboardTool } from "..";
+import { CONNECTOR_ROUTINGS, isLineWeight, isShapeTool, STICKY_NOTE_COLORS, WHITEBOARD_PALETTE, type ArrowHead, type ConnectorRouting, type LineWeight, type StickyNoteShape, type TextObject, type WhiteboardTool } from "..";
 import { PaletteChoices } from "./palette-choices";
 import { SHAPE_LIBRARY_GROUPS, ShapeLibraryIcon } from "./shape-library";
 import { CONNECTOR_STYLES, WAYPOINT_STYLES, ConnectorIcon, WaypointIcon } from "./connector-library";
@@ -29,7 +29,7 @@ export const WorkspaceToolbar = (props: WorkspaceToolbarProps): ReactElement => 
     selectedTool, setSelectedTool, activateEraserTool, activateTextTool, selectedText, updateText,
     stickyNoteFill, setStickyNoteFill, stickyNoteShape, setStickyNoteShape,
     penColor, setPenColor, penLineWeight, setPenLineWeight, isLineTool, lineColor, setLineColor, lineLineWeight,
-    connectorRouting, setConnectorRouting, lineStartArrow, setLineStartArrow, lineEndArrow, setLineEndArrow,
+    connectorRouting, setConnectorRouting, setLineStartArrow, lineEndArrow, setLineEndArrow,
     setLineLineWeight, showShapeStyle, currentShapeStroke, chooseShapeStroke, currentShapeFill, chooseShapeFill,
     currentShapeWeight, chooseShapeLineWeight, canUndo, canRedo, undoEdit, redoEdit, readOnly = false
   } = props;

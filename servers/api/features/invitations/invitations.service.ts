@@ -20,7 +20,7 @@ type Dependencies = Readonly<{
   now?: () => Date;
 }>;
 export type InvitationService = Readonly<{
-  create: (sessionId: string, ownerId: string, email: string, ipAddress: string, role: InvitationRole) => Promise<Readonly<{ invitationUrl: string; delivered: boolean }>>;
+  create: (sessionId: string, ownerId: string, email: string, ipAddress: string, role: InvitationRole) => Promise<Readonly<{ invitationUrl: string; delivered: boolean; deliveryError?: string }>>;
   list: (sessionId: string, ownerId: string) => Promise<readonly Readonly<{ id: string; email: string; role: InvitationRole; createdAt: Date; expiresAt: Date }>[] >;
   cancel: (sessionId: string, ownerId: string, invitationId: string) => Promise<void>;
   listMembers: (sessionId: string, ownerId: string) => Promise<readonly Readonly<{ identityId: string; email: string; role: InvitationRole; displayName: string; connected: boolean }>[] >;
@@ -58,13 +58,16 @@ export const createInvitationService = ({ invitations, sessions, sessionReposito
     const url = new URL("/invite/accept", webOrigin);
     url.hash = new URLSearchParams({ token }).toString();
     let delivered = false;
+    let deliveryError: string | undefined;
     try {
       await mailer.sendInvitation({ ownerIdentityId: ownerId, recipient, invitationUrl: url.toString(), sessionTitle: session.title, expiresAt });
       delivered = true;
-    } catch {
+    } catch (err) {
       delivered = false;
+      deliveryError = err instanceof Error ? err.message : "Email delivery failed";
+      console.error(`[INVITATION EMAIL FAILED] For recipient ${recipient}:`, deliveryError);
     }
-    return Object.freeze({ invitationUrl: url.toString(), delivered });
+    return Object.freeze({ invitationUrl: url.toString(), delivered, ...(deliveryError ? { deliveryError } : {}) });
   },
   list: async (sessionId, ownerId) => {
     await requireOwnedActiveSession(sessions, sessionId, ownerId);

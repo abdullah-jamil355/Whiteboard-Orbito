@@ -7,30 +7,30 @@ type GmailSmtpEmailSenderDependencies = Readonly<{
   timeoutMs?: number;
 }>;
 
-const gmailSmtpHost = "smtp.gmail.com";
-const gmailSmtpPort = 587;
 const requestTimeoutMs = 15_000;
 
 export const createGmailSmtpEmailSender = ({ username, appPassword, timeoutMs = requestTimeoutMs }: GmailSmtpEmailSenderDependencies): EmailSender => {
   const transporter = nodemailer.createTransport({
-    host: gmailSmtpHost,
-    port: gmailSmtpPort,
-    secure: false,
-    requireTLS: true,
+    service: "gmail",
     auth: { user: username, pass: appPassword },
-    tls: { minVersion: "TLSv1.2" },
     connectionTimeout: timeoutMs,
     greetingTimeout: timeoutMs,
     socketTimeout: timeoutMs
   });
 
   return async (email) => {
-    await transporter.sendMail({
-      from: { name: "Whiteboard", address: username },
-      to: email.recipient,
-      subject: email.subject,
-      html: email.html,
-      text: email.text
-    });
+    try {
+      const info = await transporter.sendMail({
+        from: { name: "Orbito Whiteboard", address: username },
+        to: email.recipient,
+        subject: email.subject,
+        html: email.html,
+        text: email.text
+      });
+      console.log(`[EMAIL SUCCESS] Sent to ${email.recipient}, messageId: ${info.messageId}`);
+    } catch (error) {
+      console.error(`[EMAIL ERROR] Failed to send email to ${email.recipient}:`, error);
+      throw error;
+    }
   };
 };

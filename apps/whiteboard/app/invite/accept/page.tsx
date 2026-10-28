@@ -10,10 +10,8 @@ import { acceptInvitation, getVerifiedIdentity, type VerifiedIdentity } from "..
 const InviteAcceptancePage = (): ReactElement => {
   const [token, setToken] = useState<string | null>(null);
   const [identity, setIdentity] = useState<VerifiedIdentity | null>(null);
-  const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [message, setMessage] = useState("Checking invitation…");
-  const [signInUrl, setSignInUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -26,7 +24,6 @@ const InviteAcceptancePage = (): ReactElement => {
       setToken(savedToken);
       setIdentity(verified);
       if (verified) {
-        setEmail(verified.email);
         setDisplayName(verified.name || verified.email.split("@")[0] || "Collaborator");
       }
       setMessage(savedToken ? verified ? "Review your name, then accept this invitation." : "Sign in with the invited email address to continue." : "Invitation link is invalid.");

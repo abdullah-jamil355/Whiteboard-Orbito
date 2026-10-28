@@ -14,19 +14,18 @@ type Props = Readonly<{
 }>;
 
 export const WorkspaceAvailableSessions = ({ sessions, email, busy, onRejoin, onDismiss }: Props): ReactElement | null => {
-  const [visible, setVisible] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (sessions.length === 0) return;
-    setVisible(true);
     const timer = setTimeout(() => {
-      setVisible(false);
+      setDismissed(true);
       onDismiss();
     }, 10000);
     return () => clearTimeout(timer);
   }, [sessions, onDismiss]);
 
-  if (!visible || sessions.length === 0) return null;
+  if (dismissed || sessions.length === 0) return null;
 
   return (
     <section aria-label="Your active sessions" className="wb-available-sessions flex items-center justify-between gap-3">
@@ -42,7 +41,7 @@ export const WorkspaceAvailableSessions = ({ sessions, email, busy, onRejoin, on
         aria-label="Dismiss active sessions"
         className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground shrink-0"
         onClick={() => {
-          setVisible(false);
+          setDismissed(true);
           onDismiss();
         }}
         size="icon"
