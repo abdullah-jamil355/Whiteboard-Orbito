@@ -46,7 +46,14 @@ if (config.mongodbUri) {
   await ensureInvitationIndexes();
 }
 await server.start();
-if (realtime) await realtime.start();
+if (realtime) {
+  if (config.realtimePort) {
+    await realtime.start();
+  } else {
+    realtime.attachToHttpServer(server.raw);
+    logger.info("Realtime WebSocket sharing API HTTP server port.", { port: config.port });
+  }
+}
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {

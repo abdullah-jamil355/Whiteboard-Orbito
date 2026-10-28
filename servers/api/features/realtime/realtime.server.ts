@@ -1,3 +1,4 @@
+import type { Server as NodeHttpServer } from "node:http";
 import { Server } from "@hocuspocus/server";
 import type { Connection } from "@hocuspocus/server";
 import type { Logger } from "@workspace/logging";
@@ -43,7 +44,7 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     const prior = sessionQueues.get(sessionId) ?? Promise.resolve();
     const next = prior.then(task, task);
     sessionQueues.set(sessionId, next);
-    next.finally(() => {
+    void next.finally(() => {
       if (sessionQueues.get(sessionId) === next) sessionQueues.delete(sessionId);
     });
     return next;
@@ -285,6 +286,11 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     start: async (): Promise<void> => {
       await server.listen();
       logger.info("Whiteboard realtime server started.", { host: config.realtimeHost, port: config.realtimePort });
+    },
+    attachToHttpServer: (httpServer: NodeHttpServer): void => {
+      server.httpServer = httpServer;
+      (server as unknown as { setupHttpUpgrade: () => void }).setupHttpUpgrade();
+      logger.info("Whiteboard realtime server attached to HTTP server (shared port mode).");
     },
     stop: async (): Promise<void> => {
       for (const timer of timers.values()) clearInterval(timer);
