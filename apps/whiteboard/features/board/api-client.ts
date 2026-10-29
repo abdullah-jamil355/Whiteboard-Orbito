@@ -96,11 +96,13 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
 
 export const getVerifiedIdentity = async (): Promise<VerifiedIdentity | null> => {
   try {
-    const result = await request<{ identity: VerifiedIdentity; sessionToken?: string }>("/auth/session");
+    const result = await request<{ identity: VerifiedIdentity | null; sessionToken?: string }>("/auth/session");
     if (result.identity) {
       setStoredAuth(result.sessionToken ?? getStoredSessionToken(), result.identity);
+    } else {
+      setStoredAuth(null, null);
     }
-    return result.identity;
+    return result.identity ?? null;
   } catch {
     setStoredAuth(null, null);
     return null;

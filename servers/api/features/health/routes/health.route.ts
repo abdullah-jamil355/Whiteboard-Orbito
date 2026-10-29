@@ -9,6 +9,7 @@ export const createHealthRoutes = (dependencies: HealthRouteDependencies): Route
   const service = createHealthService(dependencies);
   const controller = createHealthController({ service });
 
+  router.get("/", controller);
   router.get("/health", controller);
   return router;
 };

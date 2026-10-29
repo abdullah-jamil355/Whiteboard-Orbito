@@ -172,9 +172,8 @@ export const createIdentityController = ({ service, mailbox, config }: Controlle
         const sessionToken = readIdentitySessionToken(request);
         const identity = await service.getIdentityForSession(sessionToken);
         if (!identity) {
-          response.status(HTTP_STATUS.unauthorized).json({
-            error: { code: ERROR_CODES.authenticationRequired, message: ERROR_MESSAGES.authenticationRequired }
-          });
+          response.setHeader("Cache-Control", "no-store");
+          response.status(HTTP_STATUS.ok).json({ identity: null, sessionToken: null });
           return;
         }
         response.setHeader("Cache-Control", "no-store");

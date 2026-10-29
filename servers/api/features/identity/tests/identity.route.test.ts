@@ -30,7 +30,7 @@ const createTestServer = async (environment: string, host: string) => {
       sessionToken: "s".repeat(43),
       expiresAt: new Date(Date.now() + 60_000)
     }),
-    getIdentityForSession: () => Promise.resolve({ id: "identity-1", email: "owner@example.com" }),
+    getIdentityForSession: (token) => Promise.resolve(token ? { id: "identity-1", email: "owner@example.com" } : null),
     revokeSession: () => Promise.resolve(),
     reserveInvitationRateLimit: () => Promise.resolve(true),
     startGoogleMailConnect: () => Promise.resolve("https://accounts.google.com"),
@@ -106,4 +106,14 @@ void test("session establishment returns an HttpOnly, SameSite cookie", async (c
   assert.match(response.headers.get("set-cookie") ?? "", /HttpOnly/);
   assert.match(response.headers.get("set-cookie") ?? "", /SameSite=Lax/);
   assert.equal(JSON.stringify(await response.json()).includes("s".repeat(43)), false);
+});
+
+void test("unauthenticated session query returns 200 with null identity rather than error", async (context) => {
+  const running = await createTestServer("development", "127.0.0.1");
+  context.after(async () => { await running.server.stop(); });
+
+  const response = await fetch(`${running.origin}/auth/session`);
+  assert.equal(response.status, 200);
+  const data = await response.json() as { identity: unknown };
+  assert.equal(data.identity, null);
 });

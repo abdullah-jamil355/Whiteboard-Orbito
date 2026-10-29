@@ -33,4 +33,10 @@ void test("GET /health exposes the composed feature behavior", async (context) =
     service: "api",
     environment: "test"
   });
+
+  const rootResponse = await fetch(`http://127.0.0.1:${String(address.port)}/`);
+  assert.equal(rootResponse.status, HTTP_STATUS.ok);
+
+  const headResponse = await fetch(`http://127.0.0.1:${String(address.port)}/`, { method: "HEAD" });
+  assert.equal(headResponse.status, HTTP_STATUS.ok);
 });
