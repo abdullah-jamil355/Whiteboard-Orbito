@@ -2,8 +2,7 @@
 
 import type { ChangeEvent, ReactElement, RefObject } from "react";
 import Link from "next/link";
-import type { Route } from "next";
-import { Activity, FileUp, Home, LayoutTemplate, LogIn, LogOut, Mail, Plus, Radio, Save, Shapes } from "lucide-react";
+import { FileUp, Home, LayoutTemplate, LogIn, LogOut, Mail, Plus, Radio, Save, Shapes } from "lucide-react";
 import { Button } from "@workspace/ui/primitives/button";
 import type { GoogleMailStatus } from "../api-client";
 
@@ -53,9 +52,6 @@ export const WorkspaceSidebar = (props: Props): ReactElement => {
           <Button aria-label="Templates" className="wb-sidebar-link" onClick={onOpenTemplates} size="sm" title="Templates" variant="ghost">
             <LayoutTemplate aria-hidden="true" /><span className="wb-sidebar-label">Templates</span>
           </Button>
-          <Link aria-label="Observability & Metrics" className="wb-sidebar-link" href={"/observability" as unknown as Route} title="Observability & Performance">
-            <Activity aria-hidden="true" /><span className="wb-sidebar-label">Observability</span>
-          </Link>
         </nav>
 
         <section className="wb-sidebar-section" aria-label="Board actions">
