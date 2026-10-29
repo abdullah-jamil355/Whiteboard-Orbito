@@ -121,3 +121,5 @@ export const createGoogleOAuthIntegration = (configuration: GoogleOAuthConfigura
     if (!sendResponse.ok) throw new Error("Google Gmail API rejected the invitation message.");
   }
 });
+
+export type GoogleOAuthIntegration = ReturnType<typeof createGoogleOAuthIntegration>;

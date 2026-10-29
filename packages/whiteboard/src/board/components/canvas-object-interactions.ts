@@ -188,3 +188,5 @@ export const createCanvasObjectInteractions = (dependencies: CanvasGestureDepend
   };
 };
 
+
+export const useCanvasObjectInteractions = createCanvasObjectInteractions;

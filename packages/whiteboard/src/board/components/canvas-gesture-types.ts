@@ -9,6 +9,7 @@ export type CanvasObjectResizePreview = Readonly<{ object: Board["objects"][numb
 export type CanvasMutableRef<T> = { current: T };
 export type CanvasStateSetter<T> = Dispatch<SetStateAction<T>>;
 
+export type CanvasGestureState = CanvasGestureDependencies["state"];
 export type CanvasGestureDependencies = Readonly<{
   board: Readonly<{ board: Board; shapes: readonly ShapeObject[] }>;
   view: Readonly<{

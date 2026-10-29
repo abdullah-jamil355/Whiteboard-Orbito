@@ -6,40 +6,33 @@ import type { ApiConfig } from "../../types/index.js";
 import type { IdentityService } from "../identity/public.js";
 import type { RealtimeInvitationRepository } from "../invitations/public.js";
 import type { RealtimeSessionRepository } from "../sessions/public.js";
-import { BoardEditRejected } from "../sessions/public.js";
-import { realtimeClientMessageSchema } from "../sessions/public.js";
 import { isAllowedRealtimeOrigin, parseRealtimeRoomId, readRealtimeSessionCookie, sanitizeRealtimeAwarenessState } from "./realtime.rules.js";
+import { handleRealtimeStatelessMessage, type RealtimeContext } from "./realtime.stateless.js";
 
-type RealtimeContext = Readonly<{ sessionId: string; identityId: string; displayName: string; role: "owner" | "editor" | "viewer"; connectionId: string }>;
 type Dependencies = Readonly<{
   config: ApiConfig;
-  logger: Logger;
   identity: IdentityService;
-  sessions: RealtimeSessionRepository;
   invitations: RealtimeInvitationRepository;
+  logger: Logger;
+  sessions: RealtimeSessionRepository;
 }>;
+
 const leaseMs = 90_000;
 const heartbeatMs = 30_000;
 const commandWindowMs = 60_000;
 const maximumCommandsPerWindow = 1_200;
 const maximumAwarenessUpdatesPerWindow = 2_400;
 const maximumAwarenessClientStatesPerUpdate = 30;
-const actionIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const readActionId = (value: unknown): string | undefined => {
-  if (typeof value === "object" && value !== null && "actionId" in value && typeof value.actionId === "string" && actionIdPattern.test(value.actionId)) return value.actionId;
-  if (typeof value !== "object" || value === null || !("command" in value)) return undefined;
-  const command = value.command;
-  if (typeof command !== "object" || command === null || !("actionId" in command)) return undefined;
-  return typeof command.actionId === "string" && actionIdPattern.test(command.actionId) ? command.actionId : undefined;
-};
+
 export const createRealtimeServer = ({ config, logger, identity, sessions, invitations }: Dependencies) => {
   if (config.realtimePort && !config.realtimeHost) throw new Error("Realtime host is required when realtime port is specified.");
   const timers = new Map<string, NodeJS.Timeout>();
   const connections = new Map<string, Connection<RealtimeContext>>();
-  const commandWindows = new Map<string, { startedAt: number; count: number }>();
-  const awarenessWindows = new Map<string, { startedAt: number; count: number }>();
+  const commandWindows = new Map<string, { count: number; startedAt: number }>();
+  const awarenessWindows = new Map<string, { count: number; startedAt: number }>();
   const awarenessAnomalyLogged = new Set<string>();
   const sessionQueues = new Map<string, Promise<unknown>>();
+
   const enqueueSession = <T>(sessionId: string, task: () => Promise<T>): Promise<T> => {
     const prior = sessionQueues.get(sessionId) ?? Promise.resolve();
     const next = prior.then(task, task);
@@ -49,6 +42,7 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     });
     return next;
   };
+
   const server = new Server<RealtimeContext>({
     ...(config.realtimeHost ? { address: config.realtimeHost } : {}),
     ...(config.realtimePort ? { port: config.realtimePort } : {}),
@@ -84,8 +78,8 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
       connectionConfig.readOnly = true;
       let consecutiveLeaseFailures = 0;
       timers.set(socketId, setInterval(() => {
-          void sessions.refreshConnection(sessionId, socketId, new Date(Date.now() + leaseMs))
-            .then((refreshed) => {
+        void sessions.refreshConnection(sessionId, socketId, new Date(Date.now() + leaseMs))
+          .then((refreshed) => {
             consecutiveLeaseFailures = refreshed ? 0 : consecutiveLeaseFailures + 1;
             if (!refreshed) {
               connections.get(socketId)?.close({ code: 4408, reason: "Realtime seat lease expired." });
@@ -125,8 +119,9 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
               if (participant.context.sessionId === context.sessionId) participant.sendStateless(message);
             }
           }
+        } else {
+          connection.close({ code: 4403, reason: "Session is no longer active." });
         }
-        else connection.close({ code: 4403, reason: "Session is no longer active." });
       } catch {
         logger.error("Realtime board state could not be loaded after connection.", { sessionId: context.sessionId });
         connection.close({ code: 1013, reason: "Board state is temporarily unavailable." });
@@ -134,89 +129,21 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     },
     onStateless: async ({ connection: source, document, documentName, payload }) => {
       const connection = source as Connection<RealtimeContext>;
-      const context = connection.context;
-      if (documentName !== context.sessionId) return;
-      const now = Date.now();
-      const window = commandWindows.get(context.connectionId);
-      const currentWindow = window && now - window.startedAt < commandWindowMs ? window : { startedAt: now, count: 0 };
-      currentWindow.count += 1;
-      commandWindows.set(context.connectionId, currentWindow);
-      if (currentWindow.count > maximumCommandsPerWindow) {
-        if (currentWindow.count === maximumCommandsPerWindow + 1) logger.warn("Realtime semantic command rate limit exceeded.", { sessionId: context.sessionId });
-        connection.sendStateless(JSON.stringify({ type: "board:rejected", reason: "rate_limited" }));
-        return;
-      }
-      let value: unknown;
-      try { value = JSON.parse(payload) as unknown; } catch { connection.sendStateless(JSON.stringify({ type: "board:rejected", reason: "invalid_message" })); return; }
-      const parsed = realtimeClientMessageSchema.safeParse(value);
-      if (!parsed.success) { connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId: readActionId(value), reason: "invalid_message" })); return; }
-      const session = await sessions.findById(context.sessionId);
-      if (!session || session.status !== "active") {
-        connection.close({ code: 4403, reason: "Session access has been revoked." });
-        return;
-      }
-      if (parsed.data.type === "board:sync") {
-        const member = context.role === "owner" ? session.ownerIdentityId === context.identityId : await invitations.findMembership(context.sessionId, context.identityId);
-        if (!member) { connection.close({ code: 4403, reason: "Session access has been revoked." }); return; }
-        const history = await sessions.getHistoryState(context.sessionId);
-        connection.sendStateless(JSON.stringify({ type: "board:state", board: session.board, sequence: session.sequence, history }));
-        return;
-      }
-      if (parsed.data.type === "board:undo" || parsed.data.type === "board:redo") {
-        const { actionId } = parsed.data;
-        if (context.role === "viewer") {
-          connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId, reason: "forbidden" }));
-          return;
-        }
-        if (context.role !== "owner" && !await invitations.findMembership(context.sessionId, context.identityId)) {
-          connection.close({ code: 4403, reason: "Session access has been revoked." });
-          return;
-        }
-        await enqueueSession(context.sessionId, async () => {
-          try {
-            const result = await sessions.applyHistoryAction(context.sessionId, context.identityId, actionId, parsed.data.type === "board:undo" ? "undo" : "redo", new Date());
-            if (!result) { connection.close({ code: 4403, reason: "Session access has been revoked." }); return; }
-            document.broadcastStateless(JSON.stringify({ type: "board:state", actionId: result.actionId, actorIdentityId: context.identityId, board: result.board, sequence: result.sequence, history: result.history }));
-          } catch (error) {
-            if (error instanceof BoardEditRejected) {
-              connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId, reason: error.reason }));
-              return;
-            }
-            logger.error("Realtime shared history action could not be persisted.", { sessionId: context.sessionId, errorType: error instanceof Error ? error.name : "UnknownError" });
-            connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId, reason: "storage_unavailable" }));
-          }
-        });
-        return;
-      }
-      const { command } = parsed.data;
-      if (context.role === "viewer") {
-        connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId: command.actionId, reason: "forbidden" }));
-        return;
-      }
-      if (context.role !== "owner" && !await invitations.findMembership(context.sessionId, context.identityId)) {
-        connection.close({ code: 4403, reason: "Session access has been revoked." });
-        return;
-      }
-      await enqueueSession(context.sessionId, async () => {
-        try {
-          const result = await sessions.applyEdit(context.sessionId, context.identityId, command, new Date());
-          if (!result) { connection.close({ code: 4403, reason: "Session access has been revoked." }); return; }
-          document.broadcastStateless(JSON.stringify({ type: "board:state", actionId: result.actionId, actorIdentityId: context.identityId, board: result.board, sequence: result.sequence, history: result.history }));
-        } catch (error) {
-          if (error instanceof BoardEditRejected) {
-            connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId: command.actionId, reason: error.reason }));
-            return;
-          }
-          logger.error("Realtime board edit could not be persisted.", { sessionId: context.sessionId, errorType: error instanceof Error ? error.name : "UnknownError" });
-          connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId: command.actionId, reason: "storage_unavailable" }));
-        }
+      await handleRealtimeStatelessMessage(connection, document, documentName, payload, {
+        commandWindows,
+        commandWindowMs,
+        enqueueSession,
+        invitations,
+        logger,
+        maximumCommandsPerWindow,
+        sessions
       });
     },
     beforeHandleAwareness: ({ states, context }) => {
       if (context) {
         const now = Date.now();
         const priorWindow = awarenessWindows.get(context.connectionId);
-        const window = priorWindow && now - priorWindow.startedAt < commandWindowMs ? priorWindow : { startedAt: now, count: 0 };
+        const window = priorWindow && now - priorWindow.startedAt < commandWindowMs ? priorWindow : { count: 0, startedAt: now };
         window.count += 1;
         awarenessWindows.set(context.connectionId, window);
         if (window.count > maximumAwarenessUpdatesPerWindow) {
@@ -251,10 +178,11 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
         }
       }
       await sessions.releaseConnection(context.sessionId, context.connectionId).catch((error: unknown) => {
-          logger.error("Realtime seat release failed; lease expiry will recover the seat.", { sessionId: context.sessionId, error: error instanceof Error ? error.message : String(error) });
+        logger.error("Realtime seat release failed; lease expiry will recover the seat.", { sessionId: context.sessionId, error: error instanceof Error ? error.message : String(error) });
       });
     }
   });
+
   return Object.freeze({
     closeMemberConnections: (sessionId: string, identityId: string): void => {
       for (const [connectionId, connection] of connections) {
@@ -301,4 +229,5 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     }
   });
 };
+
 export type RealtimeServer = ReturnType<typeof createRealtimeServer>;

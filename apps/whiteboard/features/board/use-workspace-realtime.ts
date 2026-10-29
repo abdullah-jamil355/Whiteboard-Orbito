@@ -1,18 +1,19 @@
 "use client";
 
 import { HocuspocusProvider } from "@hocuspocus/provider";
-import type { WhiteboardHistoryState, WhiteboardRealtimeServerMessage } from "@workspace/types";
+import type { WhiteboardHistoryState } from "@workspace/types";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as Y from "yjs";
 import type { Board, CollaboratorPresence } from "@workspace/whiteboard";
-import { applyLocalBoardChanges, diffBoardChanges, parseRealtimeServerMessage, validateBoardPayload } from "./realtime-client";
-import { cacheStorageKey, maximumQueueAgeMs, maximumQueueBytes, maximumQueueEntries, nextQueuedEdit, queueStorageKey, readQueue, type PendingEdit } from "./realtime-queue";
+import { diffBoardChanges, parseRealtimeServerMessage } from "./realtime-client";
+import { maximumQueueAgeMs, maximumQueueBytes, maximumQueueEntries, nextQueuedEdit, queueStorageKey, readQueue, type PendingEdit } from "./realtime-queue";
 import { createHistoryBusyStore, createNumberStore, inactiveHistoryBusy } from "./realtime-stores";
-import { resetInFlightActionOnTransportLoss } from "./realtime-connection";
+import { getRealtimeUrl, resetInFlightActionOnTransportLoss } from "./realtime-connection";
 import { useWorkspacePresencePublishing } from "./use-workspace-presence-publishing";
 import { readCollaborators } from "./realtime-presence";
 import { createWhiteboardId } from "./create-whiteboard-id";
 import { getStoredSessionToken } from "./api-client";
+import { handleRealtimeServerMessage } from "./realtime-message-handler";
 
 type RealtimeStatus = "inactive" | "connecting" | "connected" | "disconnected";
 type Dependencies = Readonly<{
@@ -21,22 +22,7 @@ type Dependencies = Readonly<{
   onFeedback: (message: string | null) => void;
   onSessionEnded: () => void;
 }>;
-const getRealtimeUrl = (): string => {
-  if (process.env.NEXT_PUBLIC_WHITEBOARD_REALTIME_URL) {
-    return process.env.NEXT_PUBLIC_WHITEBOARD_REALTIME_URL;
-  }
-  const apiOrigin = process.env.NEXT_PUBLIC_WHITEBOARD_API_ORIGIN;
-  if (apiOrigin) {
-    try {
-      const url = new URL(apiOrigin);
-      const isSecure = url.protocol === "https:";
-      return `${isSecure ? "wss:" : "ws:"}//${url.host}`;
-    } catch {
-      // fallback below
-    }
-  }
-  return "ws://localhost:4001";
-};
+
 export const useWorkspaceRealtime = ({ sessionId, onBoardState, onFeedback, onSessionEnded }: Dependencies) => {
   const providerRef = useRef<HocuspocusProvider | null>(null);
   const pendingRef = useRef<PendingEdit[]>([]);
@@ -83,107 +69,6 @@ export const useWorkspaceRealtime = ({ sessionId, onBoardState, onFeedback, onSe
     provider.sendStateless(JSON.stringify({ type: "board:edit", command: pending.command }));
   }, []);
 
-  const handleServerMessage = useCallback((message: WhiteboardRealtimeServerMessage): void => {
-    if (sessionId === null) return;
-    if (message.type === "session:ended") {
-      pendingRef.current = [];
-      sendingActionIdRef.current = null;
-      pendingHistoryActionRef.current = null;
-      publishQueueCount();
-      try {
-        window.localStorage.removeItem(queueStorageKey(sessionId));
-        window.localStorage.removeItem(cacheStorageKey(sessionId));
-      } catch { /* The live board remains available in memory as a local copy. */ }
-      onSessionEndedRef.current();
-      return;
-    }
-    if (message.type === "session:state") {
-      setSessionState({ sessionId, role: message.role, ownerConnected: message.ownerConnected });
-      return;
-    }
-    if (message.type === "session:presence") {
-      setSessionState((current) => current.sessionId === sessionId
-        ? { ...current, ownerConnected: message.ownerConnected }
-        : { sessionId, role: null, ownerConnected: message.ownerConnected });
-      return;
-    }
-    if (message.type === "board:state" && message.history !== undefined) {
-      setHistoryState({ sessionId, state: message.history });
-    }
-    if (message.type === "board:state" && retryHistoryAfterSyncRef.current) {
-      retryHistoryAfterSyncRef.current = false;
-      const pendingHistory = pendingHistoryActionRef.current;
-      if (pendingHistory !== null) providerRef.current?.sendStateless(JSON.stringify({ type: `board:${pendingHistory.action}`, actionId: pendingHistory.actionId }));
-    }
-    if (message.type === "board:rejected") {
-      if (message.actionId !== undefined && pendingHistoryActionRef.current?.actionId === message.actionId) {
-        pendingHistoryActionRef.current = null;
-        historyBusyStore.set({ sessionId, busy: false });
-        const reason = message.reason === "unsafe_inverse"
-          ? "That action can no longer be safely undone without overwriting a later change. The shared board was left unchanged."
-          : message.reason === "history_unavailable"
-            ? "There is no shared action available for that history command."
-            : message.reason === "storage_unavailable"
-              ? "The server could not save that history action. The shared board was left unchanged."
-              : message.reason === "document_too_large"
-                ? "This shared edit exceeds Whiteboard's safe MongoDB document limit. The shared board was left unchanged."
-                : "The shared history action was rejected.";
-        onFeedbackRef.current(reason);
-        return;
-      }
-      if (message.actionId !== undefined && message.actionId === sendingActionIdRef.current) {
-        sendingActionIdRef.current = null;
-        if (message.reason === "storage_unavailable" || message.reason === "rate_limited") {
-          canSendRef.current = false;
-          onFeedbackRef.current("The server has not saved your queued edits yet. They remain on this device; reconnect and retry.");
-        } else {
-          pendingRef.current = pendingRef.current.map((pending) => pending.command.actionId === message.actionId ? { ...pending, blocked: true } : pending);
-          persistQueue();
-          onFeedbackRef.current(message.reason === "document_too_large"
-            ? "This edit would exceed Whiteboard's safe MongoDB document limit. The shared board was left unchanged; simplify the content before retrying."
-            : "One queued edit needs review and remains saved on this device. Later edits are paused to avoid overwriting it.");
-        }
-        return;
-      }
-      if (message.reason === "forbidden") onFeedbackRef.current("This session no longer allows edits from this account.");
-      return;
-    }
-
-    if (message.actionId !== undefined) {
-      if (pendingHistoryActionRef.current?.actionId === message.actionId) {
-        pendingHistoryActionRef.current = null;
-        historyBusyStore.set({ sessionId, busy: false });
-      }
-      pendingRef.current = pendingRef.current.filter(({ command }) => command.actionId !== message.actionId);
-      publishQueueCount();
-      persistQueue();
-      if (sendingActionIdRef.current === message.actionId) sendingActionIdRef.current = null;
-    }
-    if (message.sequence < sequenceRef.current) {
-      sendNext();
-      return;
-    }
-    sequenceRef.current = message.sequence;
-    const serverBoard = validateBoardPayload(message.board);
-    if (serverBoard === null) {
-      onFeedbackRef.current("The server sent a board that failed validation. Your local queued edits were kept.");
-      return;
-    }
-    let feedback: string | null = null;
-    try { window.localStorage.setItem(cacheStorageKey(sessionId), JSON.stringify({ board: serverBoard, sequence: message.sequence })); }
-    catch { feedback = "The latest server board could not be cached on this device."; }
-    let optimisticBoard = serverBoard;
-    try {
-      const replayed = pendingRef.current.reduce((current, pending) => applyLocalBoardChanges(current, pending.command.changes), serverBoard);
-      optimisticBoard = validateBoardPayload(replayed) ?? serverBoard;
-    } catch {
-      feedback = "Some queued edits could not be previewed safely. The server board is shown and the edits remain on this device.";
-    }
-    onBoardStateRef.current(optimisticBoard, message.sequence);
-    onFeedbackRef.current(feedback);
-    sendNext();
-  }, [historyBusyStore, persistQueue, publishQueueCount, sendNext, sessionId]);
-
   useEffect(() => {
     if (sessionId === null) {
       providerRef.current?.destroy();
@@ -227,7 +112,26 @@ export const useWorkspaceRealtime = ({ sessionId, onBoardState, onFeedback, onSe
       },
       onStateless: ({ payload }) => {
         const message = parseRealtimeServerMessage(payload);
-        if (message !== null) handleServerMessage(message);
+        if (message !== null) {
+          handleRealtimeServerMessage(message, {
+            historyBusyStore,
+            onBoardState: (b, s) => onBoardStateRef.current(b, s),
+            onFeedback: (f) => onFeedbackRef.current(f),
+            onSessionEnded: () => onSessionEndedRef.current(),
+            pendingHistoryActionRef,
+            pendingRef,
+            persistQueue,
+            provider: providerRef.current,
+            publishQueueCount,
+            retryHistoryAfterSyncRef,
+            sendNext,
+            sendingActionIdRef,
+            sequenceRef,
+            sessionId,
+            setHistoryState,
+            setSessionState
+          });
+        }
       },
       onStatus: ({ status: connectionStatus }) => {
         sendingActionIdRef.current = resetInFlightActionOnTransportLoss(connectionStatus, sendingActionIdRef.current);
@@ -248,7 +152,7 @@ export const useWorkspaceRealtime = ({ sessionId, onBoardState, onFeedback, onSe
       awareness?.off("change", refreshPresence);
       provider.destroy();
     };
-  }, [handleServerMessage, historyBusyStore, publishQueueCount, sessionId]);
+  }, [historyBusyStore, persistQueue, publishQueueCount, sendNext, sessionId]);
 
   const queueBoardEdit = useCallback((before: Board, after: Board): boolean => {
     if (sessionId === null) return true;
@@ -283,8 +187,6 @@ export const useWorkspaceRealtime = ({ sessionId, onBoardState, onFeedback, onSe
     historyBusyStore.set({ sessionId, busy: true });
     provider.sendStateless(JSON.stringify({ type: `board:${action}`, actionId }));
   }, [historyBusyStore, sessionId, sessionState.role]);
-  const undoShared = useCallback((): void => publishHistoryAction("undo"), [publishHistoryAction]);
-  const redoShared = useCallback((): void => publishHistoryAction("redo"), [publishHistoryAction]);
 
   const retryQueuedEdits = useCallback((): void => {
     const provider = providerRef.current;
@@ -304,5 +206,11 @@ export const useWorkspaceRealtime = ({ sessionId, onBoardState, onFeedback, onSe
   const participants = presenceState.sessionId === sessionId ? presenceState.participants : [];
   const sharedHistory = historyState.sessionId === sessionId ? historyState.state : { canUndo: false, canRedo: false };
   const historyBusy = historyBusyState.sessionId === sessionId && historyBusyState.busy;
-  return { status, queuedEditCount, queueBoardEdit, retryQueuedEdits, publishCursor, participants, sharedHistory, historyBusy, undoShared, redoShared, ...currentSessionState };
+  return {
+    status, queuedEditCount, queueBoardEdit, retryQueuedEdits, publishCursor,
+    participants, sharedHistory, historyBusy,
+    undoShared: useCallback((): void => publishHistoryAction("undo"), [publishHistoryAction]),
+    redoShared: useCallback((): void => publishHistoryAction("redo"), [publishHistoryAction]),
+    ...currentSessionState
+  };
 };

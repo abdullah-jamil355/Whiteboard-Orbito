@@ -1,16 +1,17 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { MAX_STROKE_POINT_COUNT, WHITEBOARD_PALETTE, snapConnectorEndpoint } from "..";
-import { coordinateFromClientPosition, coordinateFromPointer, getDirectionalTarget, isLinearTool, movedBeyondThreshold, movedGeometry, shapeGeometryFromDrag } from "./canvas-geometry";
-import { ERASER_RADIUS, MAX_ERASER_PATH_POINT_COUNT, MINIMUM_MOVE_DISTANCE } from "./canvas-model";
-import { resizedObjectBounds, selectObjectsInBox } from "../object-operations";
-import { resizedGeometry } from "./canvas-geometry";
+import { coordinateFromClientPosition, coordinateFromPointer, isLinearTool, shapeGeometryFromDrag } from "./canvas-geometry";
+import { MAX_ERASER_PATH_POINT_COUNT } from "./canvas-model";
 import { createCanvasConnectorGestures } from "./canvas-connector-gestures";
+import { createCanvasWaypointGestures } from "./canvas-gesture-waypoints";
 import type { CanvasGestureDependencies } from "./canvas-gesture-types";
+import { handleGestureFinish } from "./canvas-gesture-finish";
+import { handleGestureMove } from "./canvas-gesture-move";
 
 export const createCanvasSurfaceGestures = (dependencies: CanvasGestureDependencies) => {
   const { board: { board, shapes } } = dependencies;
-  const { bounds: canvasBounds, camera, setCamera, selectedTool, selectedObjectIds, spacePressed } = dependencies.view;
-  const { penColor, penLineWeight, shapeStrokeColor, shapeLineWeight, shapeFill, lineColor, lineLineWeight, connectorRouting, lineStartArrow, lineEndArrow } = dependencies.style;
+  const { bounds: canvasBounds, camera, setCamera, selectedTool, spacePressed } = dependencies.view;
+  const { lineColor, lineLineWeight, connectorRouting, lineStartArrow, lineEndArrow } = dependencies.style;
   const {
     activeGestureRef,
     previousTextClickRef,
@@ -26,22 +27,14 @@ export const createCanvasSurfaceGestures = (dependencies: CanvasGestureDependenc
     setObjectResizePreview
   } = dependencies.state;
   const {
-    onLineCommit,
-    onStrokeCommit,
-    onEraseCommit,
-    onShapeCommit,
-    onShapeGeometryChange,
     onShapeSelect,
     onSelectionChange,
-    onObjectsMove,
-    onObjectResize,
     onTextCreate,
     onStickyNoteCreate,
-    onTextSelect,
-    onTextGeometryChange
+    onTextSelect
   } = dependencies.callbacks;
   const { commitQuickConnector, startDirectionalConnector } = createCanvasConnectorGestures(dependencies);
-
+  const { deleteWaypoint, startMidpointDrag, startWaypointDrag } = createCanvasWaypointGestures(dependencies);
 
   const appendPointerPoints = (event: ReactPointerEvent<SVGSVGElement>): void => {
     const samples = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent];
@@ -144,69 +137,7 @@ export const createCanvasSurfaceGestures = (dependencies: CanvasGestureDependenc
   };
 
   const continueGesture = (event: ReactPointerEvent<SVGSVGElement>): void => {
-    const gesture = activeGestureRef.current;
-    if (gesture?.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    if (gesture.kind === "pan") {
-      const bounds = event.currentTarget.getBoundingClientRect();
-      const worldPerPixelX = canvasBounds.width / gesture.camera.zoom / Math.max(1, bounds.width);
-      const worldPerPixelY = canvasBounds.height / gesture.camera.zoom / Math.max(1, bounds.height);
-      setCamera({ ...gesture.camera, x: gesture.camera.x - (event.clientX - gesture.origin.x) * worldPerPixelX, y: gesture.camera.y - (event.clientY - gesture.origin.y) * worldPerPixelY });
-      return;
-    }
-    const current = coordinateFromPointer(event);
-    if (gesture.kind === "move-waypoint") {
-      const targetObj = board.objects.find((item) => item.id === gesture.objectId);
-      if (targetObj && (targetObj.type === "connector" || targetObj.type === "line" || targetObj.type === "arrow")) {
-        const nextWaypoints = [...(targetObj.waypoints ?? [])];
-        nextWaypoints[gesture.waypointIndex] = current;
-        dependencies.callbacks.onUpdateWaypoints?.(gesture.objectId, nextWaypoints);
-      }
-      return;
-    }
-    if (gesture.kind === "stroke") {
-      appendPointerPoints(event);
-    } else if (gesture.kind === "erase") {
-      appendEraserPoints(event);
-    } else if (gesture.kind === "line") {
-      const end = snapConnectorEndpoint(current, shapes, 24, gesture.origin);
-      const start = gesture.quickConnectDirection === undefined
-        ? snapConnectorEndpoint(gesture.origin, shapes, 24, current)
-        : gesture.start;
-      const isConnection = gesture.tool === "connector" || gesture.tool === "connection";
-      const isArrow = gesture.tool === "arrow";
-      setPreviewLine({
-        type: isConnection ? "connector" : isArrow ? "arrow" : "line",
-        start,
-        end,
-        color: lineColor,
-        lineWeight: lineLineWeight,
-        startArrow: lineStartArrow ?? "none",
-        endArrow: lineEndArrow && lineEndArrow !== "none" ? lineEndArrow : (isConnection || isArrow ? "block" : "none"),
-        routing: isConnection ? connectorRouting : "straight"
-      });
-    } else if (gesture.kind === "shape") {
-      setPreviewShape({ shape: gesture.shape, geometry: shapeGeometryFromDrag(gesture.shape, gesture.origin, current, canvasBounds) });
-    } else if (gesture.kind === "move") {
-      if (movedBeyondThreshold(gesture.origin, current)) previousTextClickRef.current = null;
-      setResizeGeometry(movedBeyondThreshold(gesture.origin, current)
-        ? movedGeometry(gesture.shape.geometry, gesture.origin, current, canvasBounds)
-        : gesture.shape.geometry);
-    } else if (gesture.kind === "move-text") {
-      if (movedBeyondThreshold(gesture.origin, current)) previousTextClickRef.current = null;
-      setTextPreviewGeometry(movedBeyondThreshold(gesture.origin, current)
-        ? movedGeometry(gesture.text.geometry, gesture.origin, current, canvasBounds)
-        : gesture.text.geometry);
-    } else if (gesture.kind === "move-objects") {
-      setSelectionBox(null);
-    } else if (gesture.kind === "box-select") {
-      setSelectionBox({ origin: gesture.origin, current });
-    } else if (gesture.kind === "resize-object") {
-      setObjectResizePreview({ object: gesture.object, bounds: resizedObjectBounds(gesture.bounds, gesture.handle, current, canvasBounds) });
-    } else {
-      const geometry = resizedGeometry(gesture.shape, gesture.handle, gesture.origin, current, canvasBounds);
-      setResizeGeometry(geometry);
-    }
+    handleGestureMove(event, dependencies, appendPointerPoints, appendEraserPoints);
   };
 
   const finishGesture = (event: ReactPointerEvent<SVGSVGElement>): void => {
@@ -217,7 +148,11 @@ export const createCanvasSurfaceGestures = (dependencies: CanvasGestureDependenc
       const bounds = event.currentTarget.getBoundingClientRect();
       const worldPerPixelX = canvasBounds.width / gesture.camera.zoom / Math.max(1, bounds.width);
       const worldPerPixelY = canvasBounds.height / gesture.camera.zoom / Math.max(1, bounds.height);
-      setCamera({ ...gesture.camera, x: gesture.camera.x - (event.clientX - gesture.origin.x) * worldPerPixelX, y: gesture.camera.y - (event.clientY - gesture.origin.y) * worldPerPixelY });
+      setCamera({
+        ...gesture.camera,
+        x: gesture.camera.x - (event.clientX - gesture.origin.x) * worldPerPixelX,
+        y: gesture.camera.y - (event.clientY - gesture.origin.y) * worldPerPixelY
+      });
       activeGestureRef.current = null;
       return;
     }
@@ -232,87 +167,9 @@ export const createCanvasSurfaceGestures = (dependencies: CanvasGestureDependenc
       activeGestureRef.current = null;
       return;
     }
-    if (gesture.kind === "stroke") {
-      appendPointerPoints(event);
-      const points = pointsRef.current;
-      if (points.length === 1) points.push(points[0]!);
-      if (points.length > 0) {
-        onStrokeCommit({ points: [...points], color: penColor, lineWeight: penLineWeight });
-      }
-      pointsRef.current = [];
-      setPreviewPoints(null);
-    } else if (gesture.kind === "erase") {
-      appendEraserPoints(event);
-      const transform = event.currentTarget.getScreenCTM();
-      const screenScale = transform === null ? 1 : Math.hypot(transform.a, transform.b);
-      if (eraserPathRef.current.length > 0) onEraseCommit([...eraserPathRef.current], ERASER_RADIUS / Math.max(screenScale, 0.01));
-      eraserPathRef.current = [];
-      setPreviewWipePath(null);
-    } else if (gesture.kind === "line") {
-      const start = gesture.quickConnectDirection === undefined
-        ? snapConnectorEndpoint(gesture.origin, shapes, 24, current)
-        : gesture.start;
-      let end = snapConnectorEndpoint(current, shapes, 24, gesture.origin);
-      if (gesture.quickConnectDirection !== undefined && !movedBeyondThreshold(gesture.origin, current)) {
-        const sourceShape = shapes.find((shape) => shape.id === start.shapeId);
-        const quickTarget = sourceShape === undefined ? null : getDirectionalTarget(sourceShape, shapes, gesture.quickConnectDirection);
-        if (quickTarget !== null) end = quickTarget;
-      }
-      const hasValidAttachment = gesture.quickConnectDirection === undefined
-        || (start.shapeId !== undefined && end.shapeId !== undefined && start.shapeId !== end.shapeId);
-      if (hasValidAttachment && Math.hypot(end.x - start.x, end.y - start.y) >= MINIMUM_MOVE_DISTANCE) {
-        const isConnection = gesture.tool === "connector" || gesture.tool === "connection";
-        const isArrow = gesture.tool === "arrow";
-        const startArrow = lineStartArrow ?? "none";
-        const endArrow = lineEndArrow && lineEndArrow !== "none" ? lineEndArrow : (isConnection || isArrow ? "block" : "none");
-        if (isConnection) {
-          onLineCommit({ type: "connector", start, end, color: lineColor, lineWeight: lineLineWeight, startArrow, endArrow, routing: connectorRouting, waypoints: [] });
-        } else if (isArrow) {
-          onLineCommit({ type: "arrow", start, end, color: lineColor, lineWeight: lineLineWeight, startArrow, endArrow, routing: "straight", waypoints: [] });
-        } else {
-          onLineCommit({ type: "line", start, end, color: lineColor, lineWeight: lineLineWeight, startArrow, endArrow, routing: "straight", waypoints: [] });
-        }
-      }
-      setPreviewLine(null);
-    } else if (gesture.kind === "shape") {
-      const geometry = shapeGeometryFromDrag(gesture.shape, gesture.origin, current, canvasBounds);
-      onShapeCommit({
-        shape: gesture.shape,
-        geometry,
-        style: {
-          fill: shapeFill,
-          stroke: shapeStrokeColor,
-          lineWeight: shapeLineWeight
-        }
-      });
-      setPreviewShape(null);
-    } else if (gesture.kind === "move") {
-      if (movedBeyondThreshold(gesture.origin, current)) {
-        onShapeGeometryChange(gesture.shape.id, movedGeometry(gesture.shape.geometry, gesture.origin, current, canvasBounds));
-      }
-      setResizeGeometry(null);
-    } else if (gesture.kind === "move-text") {
-      if (movedBeyondThreshold(gesture.origin, current)) {
-        onTextGeometryChange(gesture.text.id, movedGeometry(gesture.text.geometry, gesture.origin, current, canvasBounds));
-      }
-      setTextPreviewGeometry(null);
-    } else if (gesture.kind === "move-objects") {
-      if (movedBeyondThreshold(gesture.origin, current)) onObjectsMove(gesture.ids, current.x - gesture.origin.x, current.y - gesture.origin.y);
-      setSelectionBox(null);
-    } else if (gesture.kind === "box-select") {
-      const boxedIds = selectObjectsInBox(board.objects, gesture.origin, current);
-      const ids = gesture.additive
-        ? [...new Set([...selectedObjectIds, ...boxedIds])]
-        : boxedIds;
-      onSelectionChange(movedBeyondThreshold(gesture.origin, current) ? ids : gesture.additive ? selectedObjectIds : []);
-      setSelectionBox(null);
-    } else if (gesture.kind === "resize-object") {
-      onObjectResize(gesture.object.id, resizedObjectBounds(gesture.bounds, gesture.handle, current, canvasBounds));
-      setObjectResizePreview(null);
-    } else if (gesture.kind === "resize") {
-      onShapeGeometryChange(gesture.shape.id, resizedGeometry(gesture.shape, gesture.handle, gesture.origin, current, canvasBounds));
-      setResizeGeometry(null);
-    }
+    const transform = event.currentTarget.getScreenCTM();
+    const screenScale = transform === null ? 1 : Math.hypot(transform.a, transform.b);
+    handleGestureFinish(gesture, current, screenScale, dependencies);
     activeGestureRef.current = null;
   };
 
@@ -331,58 +188,6 @@ export const createCanvasSurfaceGestures = (dependencies: CanvasGestureDependenc
     setObjectResizePreview(null);
   };
 
-  const startWaypointDrag = (
-    event: ReactPointerEvent<SVGElement>,
-    object: import("..").LineObject | import("..").ConnectorObject,
-    index: number
-  ): void => {
-    event.preventDefault();
-    event.stopPropagation();
-    const surface = event.currentTarget.ownerSVGElement;
-    if (surface === null) return;
-    const origin = coordinateFromClientPosition(event.clientX, event.clientY, surface);
-    activeGestureRef.current = {
-      kind: "move-waypoint",
-      pointerId: event.pointerId,
-      objectId: object.id,
-      waypointIndex: index,
-      origin
-    };
-    surface.setPointerCapture(event.pointerId);
-  };
-
-  const startMidpointDrag = (
-    event: ReactPointerEvent<SVGElement>,
-    object: import("..").LineObject | import("..").ConnectorObject,
-    segmentIndex: number,
-    point: import("..").Coordinate
-  ): void => {
-    event.preventDefault();
-    event.stopPropagation();
-    const surface = event.currentTarget.ownerSVGElement;
-    if (surface === null) return;
-    const existing = object.waypoints ?? [];
-    const newWaypoints = [...existing.slice(0, segmentIndex), point, ...existing.slice(segmentIndex)];
-    dependencies.callbacks.onUpdateWaypoints?.(object.id, newWaypoints);
-    activeGestureRef.current = {
-      kind: "move-waypoint",
-      pointerId: event.pointerId,
-      objectId: object.id,
-      waypointIndex: segmentIndex,
-      origin: point
-    };
-    surface.setPointerCapture(event.pointerId);
-  };
-
-  const deleteWaypoint = (
-    object: import("..").LineObject | import("..").ConnectorObject,
-    index: number
-  ): void => {
-    const existing = object.waypoints ?? [];
-    const newWaypoints = existing.filter((_, i) => i !== index);
-    dependencies.callbacks.onUpdateWaypoints?.(object.id, newWaypoints);
-  };
-
   return {
     appendEraserPoints,
     appendPointerPoints,
@@ -399,5 +204,4 @@ export const createCanvasSurfaceGestures = (dependencies: CanvasGestureDependenc
   };
 };
 
-
-
+export const useCanvasSurfaceGestures = createCanvasSurfaceGestures;
