@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, type ReactElement } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, type ReactElement } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -81,6 +81,60 @@ const Sparkline = ({ data, color, fillId, height = 36 }: SparklineProps): ReactE
         strokeWidth="2"
       />
     </svg>
+  );
+};
+
+type AnimatedCounterProps = Readonly<{
+  value: number;
+  decimals?: number;
+  duration?: number;
+}>;
+
+const AnimatedCounter = ({ value, decimals = 0, duration = 1400 }: AnimatedCounterProps): ReactElement => {
+  const [displayValue, setDisplayValue] = useState(0);
+  const startValueRef = useRef(0);
+
+  useEffect(() => {
+    let startTimestamp: number | null = null;
+    const startValue = startValueRef.current;
+    const diff = value - startValue;
+
+    if (diff === 0) return;
+
+    let animationFrameId: number;
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const elapsed = timestamp - startTimestamp;
+      const progress = Math.min(elapsed / duration, 1);
+      // easeOutExpo easing function
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const current = startValue + diff * ease;
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      } else {
+        startValueRef.current = value;
+        setDisplayValue(value);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      startValueRef.current = value;
+    };
+  }, [value, duration]);
+
+  return (
+    <>
+      {decimals > 0
+        ? displayValue.toFixed(decimals)
+        : Math.round(displayValue).toLocaleString()}
+    </>
   );
 };
 
@@ -327,14 +381,14 @@ export default function ObservabilityDashboardPage(): ReactElement {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-white tracking-tight">
-                {data ? data.totalRequests.toLocaleString() : "—"}
+                {data ? <AnimatedCounter value={data.totalRequests} /> : "—"}
               </span>
               <span className="text-xs text-slate-400 font-medium">total requests</span>
             </div>
             <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
               <span>Velocity:</span>
               <span className="font-mono font-bold text-amber-300">
-                {data ? String(data.requestsPerMinute) : "0"} req/min
+                {data ? <AnimatedCounter decimals={1} value={data.requestsPerMinute} /> : "0"} req/min
               </span>
             </div>
             {/* Sparkline chart */}
@@ -353,7 +407,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-white tracking-tight">
-                {data ? `${String(data.averageLatencyMs)}` : "—"}
+                {data ? <AnimatedCounter decimals={1} value={data.averageLatencyMs} /> : "—"}
               </span>
               <span className="text-xs text-slate-400 font-medium">ms avg</span>
             </div>
@@ -383,7 +437,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-white tracking-tight">
-                {data ? `${String(data.errorRatePercent)}%` : "—"}
+                {data ? <AnimatedCounter decimals={1} value={data.errorRatePercent} /> : "—"}%
               </span>
               <span className="text-xs text-slate-400 font-medium">4xx/5xx</span>
             </div>
@@ -413,14 +467,14 @@ export default function ObservabilityDashboardPage(): ReactElement {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-white tracking-tight">
-                {data ? String(data.activeSessions) : "—"}
+                {data ? <AnimatedCounter value={data.activeSessions} /> : "—"}
               </span>
               <span className="text-xs text-slate-400 font-medium">active rooms</span>
             </div>
             <div className="mt-2 text-xs flex items-center justify-between">
               <span className="text-slate-400">WebSocket Peers:</span>
               <span className="font-mono font-bold text-purple-300">
-                {data ? `${String(data.activeConnections)} connected` : "Syncing"}
+                {data ? <AnimatedCounter value={data.activeConnections} /> : "0"} connected
               </span>
             </div>
             {/* Sparkline chart */}
@@ -464,7 +518,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
                     <Database className="h-3.5 w-3.5 text-cyan-400" /> V8 HEAP MEMORY
                   </span>
                   <span className="font-mono text-xs font-bold text-white">
-                    {data.system.heapUsedMb} MB / {data.system.heapTotalMb} MB
+                    <AnimatedCounter value={data.system.heapUsedMb} /> MB / <AnimatedCounter value={data.system.heapTotalMb} /> MB
                   </span>
                 </div>
                 <div className="w-full h-2.5 rounded-full bg-slate-900 overflow-hidden border border-white/5 p-0.5">
@@ -474,7 +528,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
                   />
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  {data.system.usagePercent}% of allocated V8 heap boundary
+                  <AnimatedCounter value={data.system.usagePercent} />% of allocated V8 heap boundary
                 </p>
               </div>
 
@@ -485,7 +539,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
                     <Cpu className="h-3.5 w-3.5 text-purple-400" /> RESIDENT SET (RSS)
                   </span>
                   <span className="font-mono text-xs font-bold text-white">
-                    {data.system.rssMb} MB
+                    <AnimatedCounter value={data.system.rssMb} /> MB
                   </span>
                 </div>
                 <div className="w-full h-2.5 rounded-full bg-slate-900 overflow-hidden border border-white/5 p-0.5">
