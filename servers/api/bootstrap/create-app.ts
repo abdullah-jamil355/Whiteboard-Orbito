@@ -32,7 +32,9 @@ export const createApp = ({ config, logger, closeSessionConnections, closeMember
   app.disable("x-powered-by");
   if (config.apiTrustProxyHops !== undefined) app.set("trust proxy", config.apiTrustProxyHops);
   const metrics = createMetricsRegistry();
-  app.use(createTraceMiddleware(metrics));
+  app.use((req, res, next) => {
+    createTraceMiddleware(metrics)(req, res, next);
+  });
   app.use(createHttpLogger({
     logger,
     format: config.environment === "production" ? "combined" : "dev"

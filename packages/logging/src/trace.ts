@@ -21,11 +21,11 @@ const getStatusColor = (status: number): string => {
 };
 
 type GenericRequest = IncomingMessage & {
-  originalUrl?: string;
-  baseUrl?: string;
-  route?: { path?: unknown };
-  traceId?: string;
-  ip?: string;
+  originalUrl?: string | undefined;
+  baseUrl?: string | undefined;
+  route?: { path?: unknown } | undefined;
+  traceId?: string | undefined;
+  ip?: string | undefined;
 };
 
 const normalizeRoutePath = (req: GenericRequest): string => {
@@ -38,8 +38,14 @@ const normalizeRoutePath = (req: GenericRequest): string => {
   return rawPath.split("?")[0] || "/";
 };
 
-export const createTraceMiddleware = (metrics: MetricsRegistry) => {
-  return (req: GenericRequest, res: ServerResponse, next: () => void): void => {
+export type MiddlewareFunction = (
+  req: GenericRequest,
+  res: ServerResponse,
+  next: (error?: unknown) => void
+) => void;
+
+export const createTraceMiddleware = (metrics: MetricsRegistry): MiddlewareFunction => {
+  return (req: GenericRequest, res: ServerResponse, next: (error?: unknown) => void): void => {
     const incomingTrace = req.headers["x-request-id"] || req.headers["x-trace-id"];
     const traceId = typeof incomingTrace === "string" && /^[a-zA-Z0-9_-]{8,64}$/.test(incomingTrace)
       ? incomingTrace
