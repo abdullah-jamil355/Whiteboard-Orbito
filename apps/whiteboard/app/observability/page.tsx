@@ -192,6 +192,185 @@ const getStatusBadge = (statusCode: number): ReactElement => {
   );
 };
 
+const SpaceCosmosBackground = (): ReactElement => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    window.addEventListener("resize", handleResize);
+
+    // Generate static + drifting stars
+    const starCount = 140;
+    const stars = Array.from({ length: starCount }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      radius: Math.random() * 1.5 + 0.5,
+      alpha: Math.random() * 0.8 + 0.2,
+      alphaChange: (Math.random() * 0.015 + 0.005) * (Math.random() > 0.5 ? 1 : -1),
+      vx: (Math.random() - 0.5) * 0.1,
+      vy: (Math.random() - 0.5) * 0.1
+    }));
+
+    type ShootingStar = {
+      x: number;
+      y: number;
+      length: number;
+      speed: number;
+      angle: number;
+      opacity: number;
+      fadeSpeed: number;
+      active: boolean;
+    };
+
+    const shootingStars: ShootingStar[] = [];
+
+    const spawnShootingStar = () => {
+      const startX = Math.random() * width * 0.85;
+      const startY = Math.random() * (height * 0.4);
+      shootingStars.push({
+        x: startX,
+        y: startY,
+        length: Math.random() * 80 + 70,
+        speed: Math.random() * 8 + 12,
+        angle: (Math.PI / 4) + (Math.random() - 0.5) * 0.2,
+        opacity: 1,
+        fadeSpeed: 0.012 + Math.random() * 0.008,
+        active: true
+      });
+    };
+
+    let lastSpawnTime = performance.now();
+    let nextSpawnDelay = 2200 + Math.random() * 2500;
+
+    const render = (time: number) => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Deep space atmospheric base gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+      bgGrad.addColorStop(0, "#050813");
+      bgGrad.addColorStop(0.5, "#070c1b");
+      bgGrad.addColorStop(1, "#0a1024");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Distant celestial nebula glows (soft cyan and purple)
+      const nebula1 = ctx.createRadialGradient(width * 0.2, height * 0.25, 10, width * 0.2, height * 0.25, width * 0.45);
+      nebula1.addColorStop(0, "rgba(56, 189, 248, 0.08)");
+      nebula1.addColorStop(1, "transparent");
+      ctx.fillStyle = nebula1;
+      ctx.fillRect(0, 0, width, height);
+
+      const nebula2 = ctx.createRadialGradient(width * 0.82, height * 0.75, 10, width * 0.82, height * 0.75, width * 0.4);
+      nebula2.addColorStop(0, "rgba(168, 85, 247, 0.07)");
+      nebula2.addColorStop(1, "transparent");
+      ctx.fillStyle = nebula2;
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw and twinkle stars with soft drift
+      for (const star of stars) {
+        star.alpha += star.alphaChange;
+        if (star.alpha <= 0.15 || star.alpha >= 1) {
+          star.alphaChange = -star.alphaChange;
+        }
+        star.x += star.vx;
+        star.y += star.vy;
+        if (star.x < 0) star.x = width;
+        if (star.x > width) star.x = 0;
+        if (star.y < 0) star.y = height;
+        if (star.y > height) star.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(224, 238, 255, ${Math.max(0, Math.min(1, star.alpha))})`;
+        ctx.shadowBlur = star.radius > 1.2 ? 5 : 0;
+        ctx.shadowColor = "rgba(56, 189, 248, 0.9)";
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      // Check spawn for shooting stars
+      if (time - lastSpawnTime > nextSpawnDelay) {
+        spawnShootingStar();
+        // Occasional cluster of 2 shooting stars
+        if (Math.random() > 0.45) {
+          setTimeout(spawnShootingStar, 260 + Math.random() * 200);
+        }
+        lastSpawnTime = time;
+        nextSpawnDelay = 2000 + Math.random() * 2800;
+      }
+
+      // Render shooting star streaks
+      for (let i = shootingStars.length - 1; i >= 0; i--) {
+        const s = shootingStars[i]!;
+        if (!s.active) {
+          shootingStars.splice(i, 1);
+          continue;
+        }
+
+        s.x += Math.cos(s.angle) * s.speed;
+        s.y += Math.sin(s.angle) * s.speed;
+        s.opacity -= s.fadeSpeed;
+
+        if (s.opacity <= 0 || s.x > width || s.y > height) {
+          s.active = false;
+          continue;
+        }
+
+        const tailX = s.x - Math.cos(s.angle) * s.length;
+        const tailY = s.y - Math.sin(s.angle) * s.length;
+
+        const grad = ctx.createLinearGradient(s.x, s.y, tailX, tailY);
+        grad.addColorStop(0, `rgba(255, 255, 255, ${s.opacity})`);
+        grad.addColorStop(0.25, `rgba(56, 189, 248, ${s.opacity * 0.9})`);
+        grad.addColorStop(1, "rgba(56, 189, 248, 0)");
+
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(tailX, tailY);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = "round";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "rgba(56, 189, 248, 0.95)";
+        ctx.stroke();
+
+        // Bright star head
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 1.6, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "#ffffff";
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    animationFrameId = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  return <canvas className="fixed inset-0 pointer-events-none -z-20 w-full h-full" ref={canvasRef} />;
+};
+
 export default function ObservabilityDashboardPage(): ReactElement {
   const [data, setData] = useState<ObservabilitySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -264,17 +443,15 @@ export default function ObservabilityDashboardPage(): ReactElement {
   }, [data, traceSearch, traceFilter]);
 
   return (
-    <div className="relative min-h-screen bg-[#070B14] text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Ambient background light gradients (Code & Chill style) */}
+    <div className="relative min-h-screen text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden">
+      <SpaceCosmosBackground />
+
+      {/* Subtle celestial grid pattern overlay */}
       <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute -top-[15%] left-[10%] w-[600px] h-[400px] rounded-full bg-blue-600/10 blur-[130px]" />
-        <div className="absolute top-[20%] right-[5%] w-[500px] h-[350px] rounded-full bg-cyan-500/10 blur-[140px]" />
-        <div className="absolute bottom-[10%] left-[30%] w-[550px] h-[350px] rounded-full bg-purple-600/10 blur-[150px]" />
-        {/* Subtle grid pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:32px_32px]" />
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 z-10">
         {/* Top Header Card */}
         <header className="relative rounded-3xl border border-white/[0.08] bg-[#0E1526]/75 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl shadow-black/40 overflow-hidden">
           {/* Subtle gradient border accent top */}
