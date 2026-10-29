@@ -1,10 +1,11 @@
 import express, { type Express } from "express";
 import { randomBytes } from "node:crypto";
-import { createHttpLogger, type Logger } from "@workspace/logging";
+import { createHttpLogger, createMetricsRegistry, createTraceMiddleware, type Logger } from "@workspace/logging";
 import type { ApiConfig } from "../types/index.js";
 import { createBrevoHttpEmailSender, createGmailSmtpEmailSender } from "../integrations/index.js";
 import { apiRuntime } from "../constants/index.js";
 import { createHealthRoutes } from "../features/health/index.js";
+import { createMonitoringRoutes } from "../features/monitoring/index.js";
 import {
   createDevMailbox,
   createIdentityRepository,
@@ -30,6 +31,8 @@ export const createApp = ({ config, logger, closeSessionConnections, closeMember
   const app = express();
   app.disable("x-powered-by");
   if (config.apiTrustProxyHops !== undefined) app.set("trust proxy", config.apiTrustProxyHops);
+  const metrics = createMetricsRegistry();
+  app.use(createTraceMiddleware(metrics));
   app.use(createHttpLogger({
     logger,
     format: config.environment === "production" ? "combined" : "dev"
@@ -118,16 +121,22 @@ export const createApp = ({ config, logger, closeSessionConnections, closeMember
       onCleanupFailure: onSessionCleanupFailure
     })
     : sessionService;
-  const featureRouters = [createHealthRoutes({
-    environment: config.environment,
-    serviceName: apiRuntime.serviceName
-  }), createIdentityRoutes({
-    service: identityService,
-    mailbox,
-    webOrigin: config.webOrigin,
-    environment: config.environment,
-    host: config.host
-  }), createSessionRoutes({ identity: identityService, sessions: memberAwareSessionService, webOrigin: config.webOrigin }), createInvitationRoutes({ identity: identityService, invitations, webOrigin: config.webOrigin })];
+  const featureRouters = [
+    createHealthRoutes({
+      environment: config.environment,
+      serviceName: apiRuntime.serviceName
+    }),
+    createMonitoringRoutes({ metrics }),
+    createIdentityRoutes({
+      service: identityService,
+      mailbox,
+      webOrigin: config.webOrigin,
+      environment: config.environment,
+      host: config.host
+    }),
+    createSessionRoutes({ identity: identityService, sessions: memberAwareSessionService, webOrigin: config.webOrigin }),
+    createInvitationRoutes({ identity: identityService, invitations, webOrigin: config.webOrigin })
+  ];
   for (const featureRouter of featureRouters) app.use(featureRouter);
   app.use(createNotFoundHandler());
   app.use(createErrorHandler({ logger }));

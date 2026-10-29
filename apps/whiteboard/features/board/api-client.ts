@@ -177,3 +177,53 @@ export const toLocalSession = (session: ApiBoardSession): BoardSession => ({
   initialBoard: session.board
 });
 
+export type ObservabilitySummary = Readonly<{
+  totalRequests: number;
+  requestsPerMinute: number;
+  averageLatencyMs: number;
+  errorRatePercent: number;
+  activeSessions: number;
+  activeConnections: number;
+  system: Readonly<{
+    heapUsedMb: number;
+    heapTotalMb: number;
+    rssMb: number;
+    usagePercent: number;
+    uptimeSeconds: number;
+    nodeVersion: string;
+  }>;
+  endpoints: readonly Readonly<{
+    method: string;
+    route: string;
+    hits: number;
+    avgDurationMs: number;
+    minDurationMs: number;
+    maxDurationMs: number;
+    successRatePercent: number;
+    lastCalledAt: string;
+  }>[];
+  recentTraces: readonly Readonly<{
+    traceId: string;
+    timestamp: string;
+    method: string;
+    route: string;
+    statusCode: number;
+    durationMs: number;
+    ip: string;
+    error?: string;
+  }>[];
+}>;
+
+export const fetchObservabilityStats = async (): Promise<ObservabilitySummary> => {
+  const response = await fetch(`${apiOrigin}/observability/stats`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store"
+  });
+  if (!response.ok) {
+    throw new WhiteboardApiError("Failed to fetch observability statistics", response.status);
+  }
+  return response.json() as Promise<ObservabilitySummary>;
+};
+
+export const getPrometheusMetricsUrl = (): string => `${apiOrigin}/metrics`;
+
