@@ -212,16 +212,17 @@ const SpaceCosmosBackground = (): ReactElement => {
     };
     window.addEventListener("resize", handleResize);
 
-    // Generate static + drifting stars
-    const starCount = 140;
+    // Generate static + drifting twinkling stars
+    const starCount = 180;
     const stars = Array.from({ length: starCount }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      radius: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.8 + 0.2,
-      alphaChange: (Math.random() * 0.015 + 0.005) * (Math.random() > 0.5 ? 1 : -1),
-      vx: (Math.random() - 0.5) * 0.1,
-      vy: (Math.random() - 0.5) * 0.1
+      radius: Math.random() * 1.8 + 0.7,
+      alpha: Math.random() * 0.7 + 0.3,
+      alphaChange: (Math.random() * 0.02 + 0.008) * (Math.random() > 0.5 ? 1 : -1),
+      vx: (Math.random() - 0.5) * 0.12,
+      vy: (Math.random() - 0.5) * 0.12,
+      isCyan: Math.random() > 0.65
     }));
 
     type ShootingStar = {
@@ -238,27 +239,32 @@ const SpaceCosmosBackground = (): ReactElement => {
     const shootingStars: ShootingStar[] = [];
 
     const spawnShootingStar = () => {
-      const startX = Math.random() * width * 0.85;
-      const startY = Math.random() * (height * 0.4);
+      const startX = Math.random() * width * 0.9;
+      const startY = Math.random() * (height * 0.45);
       shootingStars.push({
         x: startX,
         y: startY,
-        length: Math.random() * 80 + 70,
-        speed: Math.random() * 8 + 12,
-        angle: (Math.PI / 4) + (Math.random() - 0.5) * 0.2,
+        length: Math.random() * 100 + 110,
+        speed: Math.random() * 10 + 15,
+        angle: (Math.PI / 4) + (Math.random() - 0.5) * 0.25,
         opacity: 1,
         fadeSpeed: 0.012 + Math.random() * 0.008,
         active: true
       });
     };
 
+    // Spawn first shooting star right after 400ms so user sees it instantly
+    const initialTimer = setTimeout(() => {
+      spawnShootingStar();
+    }, 400);
+
     let lastSpawnTime = performance.now();
-    let nextSpawnDelay = 2200 + Math.random() * 2500;
+    let nextSpawnDelay = 1800 + Math.random() * 2200;
 
     const render = (time: number) => {
       ctx.clearRect(0, 0, width, height);
 
-      // Deep space atmospheric base gradient
+      // Deep space base background
       const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
       bgGrad.addColorStop(0, "#050813");
       bgGrad.addColorStop(0.5, "#070c1b");
@@ -266,23 +272,23 @@ const SpaceCosmosBackground = (): ReactElement => {
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Distant celestial nebula glows (soft cyan and purple)
-      const nebula1 = ctx.createRadialGradient(width * 0.2, height * 0.25, 10, width * 0.2, height * 0.25, width * 0.45);
-      nebula1.addColorStop(0, "rgba(56, 189, 248, 0.08)");
+      // Distant glowing cosmic nebulae
+      const nebula1 = ctx.createRadialGradient(width * 0.25, height * 0.2, 20, width * 0.25, height * 0.2, width * 0.5);
+      nebula1.addColorStop(0, "rgba(56, 189, 248, 0.10)");
       nebula1.addColorStop(1, "transparent");
       ctx.fillStyle = nebula1;
       ctx.fillRect(0, 0, width, height);
 
-      const nebula2 = ctx.createRadialGradient(width * 0.82, height * 0.75, 10, width * 0.82, height * 0.75, width * 0.4);
-      nebula2.addColorStop(0, "rgba(168, 85, 247, 0.07)");
+      const nebula2 = ctx.createRadialGradient(width * 0.8, height * 0.7, 20, width * 0.8, height * 0.7, width * 0.45);
+      nebula2.addColorStop(0, "rgba(168, 85, 247, 0.09)");
       nebula2.addColorStop(1, "transparent");
       ctx.fillStyle = nebula2;
       ctx.fillRect(0, 0, width, height);
 
-      // Draw and twinkle stars with soft drift
+      // Draw and animate twinkling stars
       for (const star of stars) {
         star.alpha += star.alphaChange;
-        if (star.alpha <= 0.15 || star.alpha >= 1) {
+        if (star.alpha <= 0.2 || star.alpha >= 1) {
           star.alphaChange = -star.alphaChange;
         }
         star.x += star.vx;
@@ -294,25 +300,32 @@ const SpaceCosmosBackground = (): ReactElement => {
 
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(224, 238, 255, ${Math.max(0, Math.min(1, star.alpha))})`;
-        ctx.shadowBlur = star.radius > 1.2 ? 5 : 0;
-        ctx.shadowColor = "rgba(56, 189, 248, 0.9)";
+        const color = star.isCyan
+          ? `rgba(186, 230, 253, ${Math.max(0, Math.min(1, star.alpha))})`
+          : `rgba(255, 255, 255, ${Math.max(0, Math.min(1, star.alpha))})`;
+        ctx.fillStyle = color;
+        if (star.radius > 1.2) {
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = star.isCyan ? "rgba(56, 189, 248, 0.9)" : "rgba(255, 255, 255, 0.8)";
+        } else {
+          ctx.shadowBlur = 0;
+        }
         ctx.fill();
       }
       ctx.shadowBlur = 0;
 
-      // Check spawn for shooting stars
+      // Spawn periodic shooting stars
       if (time - lastSpawnTime > nextSpawnDelay) {
         spawnShootingStar();
-        // Occasional cluster of 2 shooting stars
-        if (Math.random() > 0.45) {
-          setTimeout(spawnShootingStar, 260 + Math.random() * 200);
+        // Occasional cluster of 2 or 3 shooting stars
+        if (Math.random() > 0.4) {
+          setTimeout(spawnShootingStar, 250 + Math.random() * 250);
         }
         lastSpawnTime = time;
-        nextSpawnDelay = 2000 + Math.random() * 2800;
+        nextSpawnDelay = 1800 + Math.random() * 2500;
       }
 
-      // Render shooting star streaks
+      // Render shooting stars with glowing luminous tail
       for (let i = shootingStars.length - 1; i >= 0; i--) {
         const s = shootingStars[i]!;
         if (!s.active) {
@@ -334,24 +347,25 @@ const SpaceCosmosBackground = (): ReactElement => {
 
         const grad = ctx.createLinearGradient(s.x, s.y, tailX, tailY);
         grad.addColorStop(0, `rgba(255, 255, 255, ${s.opacity})`);
-        grad.addColorStop(0.25, `rgba(56, 189, 248, ${s.opacity * 0.9})`);
+        grad.addColorStop(0.25, `rgba(56, 189, 248, ${s.opacity * 0.95})`);
+        grad.addColorStop(0.7, `rgba(99, 102, 241, ${s.opacity * 0.4})`);
         grad.addColorStop(1, "rgba(56, 189, 248, 0)");
 
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(tailX, tailY);
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 1.8;
+        ctx.lineWidth = 2.2;
         ctx.lineCap = "round";
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 12;
         ctx.shadowColor = "rgba(56, 189, 248, 0.95)";
         ctx.stroke();
 
-        // Bright star head
+        // Glowing star tip
         ctx.beginPath();
-        ctx.arc(s.x, s.y, 1.6, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, 2.0, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 14;
         ctx.shadowColor = "#ffffff";
         ctx.fill();
       }
@@ -363,12 +377,13 @@ const SpaceCosmosBackground = (): ReactElement => {
     animationFrameId = requestAnimationFrame(render);
 
     return () => {
+      clearTimeout(initialTimer);
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", handleResize);
     };
   }, []);
 
-  return <canvas className="fixed inset-0 pointer-events-none -z-20 w-full h-full" ref={canvasRef} />;
+  return <canvas className="fixed inset-0 pointer-events-none z-0 w-full h-full" ref={canvasRef} />;
 };
 
 export default function ObservabilityDashboardPage(): ReactElement {
@@ -447,7 +462,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
       <SpaceCosmosBackground />
 
       {/* Subtle celestial grid pattern overlay */}
-      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:32px_32px]" />
       </div>
 
