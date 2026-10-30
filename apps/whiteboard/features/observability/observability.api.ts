@@ -40,7 +40,7 @@ export type ObservabilitySummary = Readonly<{
 }>;
 
 const getApiBaseUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  return process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_WHITEBOARD_API_ORIGIN ?? "http://localhost:4000";
 };
 
 export const fetchObservabilityStats = async (): Promise<ObservabilitySummary> => {
