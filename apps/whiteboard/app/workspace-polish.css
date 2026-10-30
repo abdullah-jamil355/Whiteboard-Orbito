@@ -116,14 +116,16 @@
   box-shadow: 0 4px 14px rgb(23 38 61 / 4%);
   backdrop-filter: blur(14px);
 }
-.wb-drawing-tools {
+.wb-drawing-tools,
+.wb-history-tools {
   gap: 3px;
   padding: 4px;
   border: 1px solid #e8edf4;
   border-radius: 14px;
   background: #f7f9fc;
 }
-.wb-drawing-tools > button {
+.wb-drawing-tools > button,
+.wb-history-tools > button {
   width: 44px;
   height: 42px;
   border-radius: 10px;
@@ -131,7 +133,8 @@
   font-size: 9px;
   transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
-.wb-drawing-tools > button:not([aria-pressed="true"]):hover {
+.wb-drawing-tools > button:not([aria-pressed="true"]):hover,
+.wb-history-tools > button:not(:disabled):hover {
   transform: translateY(-2px) scale(1.06);
   background: #e9eef7;
   color: #213a60;
@@ -143,7 +146,9 @@
   color: #fff;
   transform: translateY(-1px) scale(1.02);
 }
-.wb-drawing-tools > button > svg { width: 16px; height: 16px; }
+.wb-drawing-tools > button > svg,
+.wb-history-tools > button > svg { width: 16px; height: 16px; }
+.wb-history-tools > button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
 .wb-actions { gap: 5px; }
 .wb-actions > button {
@@ -177,7 +182,7 @@
   color: #fff;
 }
 
-.wb-tool-group:not(.wb-drawing-tools) { border-color: #e1e7f0; }
+.wb-tool-group:not(.wb-drawing-tools):not(.wb-history-tools) { border-color: #e1e7f0; }
 .wb-line-weight-select,
 .wb-text-size-select {
   height: 34px;
@@ -327,13 +332,16 @@
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.6), 0 0 25px rgba(56, 189, 248, 0.1);
   backdrop-filter: blur(24px) saturate(190%);
 }
-:root[data-theme="dark"] .wb-drawing-tools {
+:root[data-theme="dark"] .wb-drawing-tools,
+:root[data-theme="dark"] .wb-history-tools {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.35);
   border-radius: 14px;
 }
-:root[data-theme="dark"] .wb-drawing-tools > button { color: #94a3b8; }
-:root[data-theme="dark"] .wb-drawing-tools > button:not([aria-pressed="true"]):hover {
+:root[data-theme="dark"] .wb-drawing-tools > button,
+:root[data-theme="dark"] .wb-history-tools > button { color: #94a3b8; }
+:root[data-theme="dark"] .wb-drawing-tools > button:not([aria-pressed="true"]):hover,
+:root[data-theme="dark"] .wb-history-tools > button:not(:disabled):hover {
   transform: translateY(-2px) scale(1.06);
   background: rgba(255, 255, 255, 0.09);
   color: #f8fafc;
@@ -345,7 +353,8 @@
   color: #fff;
   transform: translateY(-1px) scale(1.02);
 }
-:root[data-theme="dark"] .wb-tool-group:not(.wb-drawing-tools) { border-color: rgba(255, 255, 255, 0.08); }
+:root[data-theme="dark"] .wb-history-tools > button:disabled { opacity: 0.35; }
+:root[data-theme="dark"] .wb-tool-group:not(.wb-drawing-tools):not(.wb-history-tools) { border-color: rgba(255, 255, 255, 0.08); }
 :root[data-theme="dark"] .wb-actions > button {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
@@ -475,8 +484,10 @@
   .wb-header-account { width: 100%; justify-content: space-between; flex-wrap: wrap; margin-left: 0; }
   .wb-header-action-button { height: 32px; padding-inline: 9px; }
   .wb-toolbar { position: relative; top: auto; padding: 8px; }
-  .wb-drawing-tools { border-radius: 10px; }
-  .wb-drawing-tools > button { width: 42px; height: 40px; }
+  .wb-drawing-tools,
+  .wb-history-tools { border-radius: 10px; }
+  .wb-drawing-tools > button,
+  .wb-history-tools > button { width: 42px; height: 40px; }
   .wb-stage { padding: 10px; }
   .wb-canvas { min-height: max(440px, calc(100vh - 280px)); border-radius: 13px; }
   .wb-available-sessions, .wb-live-presence, .wb-invitations { margin-inline: 10px; }
@@ -486,6 +497,7 @@
   .wb-sidebar-link,
   .wb-actions > button,
   .wb-drawing-tools > button,
+  .wb-history-tools > button,
   .wb-template-card { transition: none; }
 }
 

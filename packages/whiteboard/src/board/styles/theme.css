@@ -40,7 +40,8 @@
 }
 :root[data-theme="dark"] .wb-participant-role { color: var(--muted-foreground); }
 
-:root[data-theme="dark"] .wb-drawing-tools > button { color: var(--wb-foreground-muted); }
+:root[data-theme="dark"] .wb-drawing-tools > button,
+:root[data-theme="dark"] .wb-history-tools > button { color: var(--wb-foreground-muted); }
 :root[data-theme="dark"] .wb-drawing-tools > button[aria-pressed="true"] { color: #fff; }
 :root[data-theme="dark"] .wb-actions > button:not([aria-label="Undo action"]):not([aria-label="Redo action"]) {
   background: var(--wb-surface-muted);

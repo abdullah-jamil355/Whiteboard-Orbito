@@ -30,14 +30,16 @@
   border-right: 0;
 }
 
-.wb-drawing-tools {
+.wb-drawing-tools,
+.wb-history-tools {
   flex: 0 0 auto;
   gap: 1px;
   padding-right: 8px;
   border-right: 1px solid var(--border);
 }
 
-.wb-drawing-tools > button {
+.wb-drawing-tools > button,
+.wb-history-tools > button {
   display: flex;
   width: 46px;
   height: 42px;
@@ -55,8 +57,10 @@
   box-shadow: 0 4px 10px rgb(55 140 233 / 24%);
 }
 
-.wb-drawing-tools > button > svg { width: 15px; height: 15px; }
-.wb-drawing-tools > button > span { line-height: 1; }
+.wb-drawing-tools > button > svg,
+.wb-history-tools > button > svg { width: 15px; height: 15px; }
+.wb-drawing-tools > button > span,
+.wb-history-tools > button > span { line-height: 1; }
 
 .wb-shape-library { position: relative; }
 .wb-shape-library > summary {

@@ -58,7 +58,8 @@
     border-right: 0;
   }
 
-  .wb-drawing-tools > button { width: 44px; height: 40px; }
+  .wb-drawing-tools > button,
+  .wb-history-tools > button { width: 44px; height: 40px; }
 
   .wb-actions {
     flex: 0 1 auto;

@@ -187,8 +187,8 @@ export const WorkspaceToolbar = (props: WorkspaceToolbarProps): ReactElement => 
       )}
 
       <div className="wb-tool-group wb-history-tools">
-        <Button aria-label="Undo" disabled={!canUndo} onClick={undoEdit} size="icon" title="Undo (Ctrl/Cmd+Z)" variant="ghost"><Undo2 /><span aria-hidden="true">Undo</span></Button>
-        <Button aria-label="Redo" disabled={!canRedo} onClick={redoEdit} size="icon" title="Redo (Ctrl/Cmd+Shift+Z)" variant="ghost"><Redo2 /><span aria-hidden="true">Redo</span></Button>
+        <Button aria-label="Undo" className="wb-tool-btn" disabled={!canUndo} onClick={undoEdit} size="icon" title="Undo (Ctrl/Cmd+Z)" variant="ghost"><Undo2 /><span aria-hidden="true">Undo</span></Button>
+        <Button aria-label="Redo" className="wb-tool-btn" disabled={!canRedo} onClick={redoEdit} size="icon" title="Redo (Ctrl/Cmd+Shift+Z)" variant="ghost"><Redo2 /><span aria-hidden="true">Redo</span></Button>
       </div>
     </nav>
   );
