@@ -15,8 +15,10 @@ export const isMatchingOrigin = (requestOrigin: string | undefined | null, expec
   try {
     const reqUrl = new URL(requestOrigin);
     const expUrl = new URL(expectedOrigin);
-    if (isPrivateOrLoopback(reqUrl.hostname) && isPrivateOrLoopback(expUrl.hostname) && reqUrl.port === expUrl.port) {
-      return true;
+    if (isPrivateOrLoopback(reqUrl.hostname) && isPrivateOrLoopback(expUrl.hostname)) {
+      if (reqUrl.port === expUrl.port || (expUrl.port === "3000" && reqUrl.port === "3001")) {
+        return true;
+      }
     }
   } catch {
     return false;

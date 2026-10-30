@@ -9,7 +9,7 @@
     "projects": "node codebase/cli/repo.mjs projects",
     "tasks": "node codebase/cli/repo.mjs tasks",
     "affected": "node codebase/cli/repo.mjs affected",
-    "dev": "node codebase/cli/repo.mjs run dev --concurrency 2",
+    "dev": "node codebase/cli/repo.mjs run dev --concurrency 4",
     "build": "node codebase/cli/repo.mjs build --concurrency 2",
     "repo:test": "node codebase/cli/repo.mjs test",
     "test:control-plane": "node --test codebase/**/*.test.mjs",
