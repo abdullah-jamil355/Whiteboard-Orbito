@@ -2,8 +2,6 @@
 
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactElement } from "react";
 import {
-  SHAPE_CONNECTION_POINTS,
-  shapeConnectionCoordinate,
   type BoardObject,
   type Coordinate,
   type ShapeObject,
@@ -28,6 +26,8 @@ import { createCanvasObjectInteractions } from "./canvas-object-interactions.js"
 import { useCanvasCamera } from "./use-canvas-camera.js";
 import { CanvasCollaboratorCursors } from "./canvas-collaborator-cursors.js";
 import { CanvasDrawingPreviews } from "./canvas-drawing-previews.js";
+import { CanvasEmptyState } from "./canvas-empty-state.js";
+import { CanvasConnectionPoints } from "./canvas-connection-points.js";
 
 export const WhiteboardCanvas = ({
   board,
@@ -159,12 +159,13 @@ export const WhiteboardCanvas = ({
 
   return (
     <div
-      aria-label="Whiteboard canvas workspace"
-      className={`relative w-full h-full overflow-hidden select-none outline-none ${spacePressed ? "cursor-grab" : ""}`}
+      aria-label={`Graph-paper canvas with ${board.objects.length} board objects`}
+      className={`wb-canvas ${spacePressed ? "cursor-grab" : ""}`}
       ref={canvasElementRef}
       role="region"
       tabIndex={-1}
     >
+      <CanvasEmptyState show={board.objects.length === 0 && previewPoints === null} />
       <CanvasRulers camera={camera} height={viewportSize.height} width={viewportSize.width} />
       <CanvasCameraControls onFit={() => setCamera(defaultCamera)} />
       <svg
@@ -210,22 +211,10 @@ export const WhiteboardCanvas = ({
             />
           ))}
         </g>
-        {(selectedTool === "connector" || selectedTool === "connection") && shapes.flatMap((shape) =>
-          SHAPE_CONNECTION_POINTS.map((connectionPoint) => {
-            const point = shapeConnectionCoordinate(shape.geometry, connectionPoint, shape.shape);
-            return (
-              <circle
-                aria-hidden="true"
-                className="wb-connection-point"
-                cx={point.x}
-                cy={point.y}
-                key={`${shape.id}-${connectionPoint}`}
-                pointerEvents="none"
-                r={5}
-              />
-            );
-          })
-        )}
+        <CanvasConnectionPoints
+          shapes={shapes}
+          visible={selectedTool === "connector" || selectedTool === "connection"}
+        />
         <CanvasDrawingPreviews
           penColor={penColor}
           penLineWeight={penLineWeight}

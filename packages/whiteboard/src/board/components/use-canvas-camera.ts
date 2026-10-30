@@ -11,6 +11,7 @@ import {
   type CanvasBounds,
   type CanvasCamera
 } from "./canvas-model";
+import { createCanvasZoomHandler } from "./canvas-camera.js";
 
 type UseCanvasCameraProps = Readonly<{
   board: Board;
@@ -97,6 +98,33 @@ export const useCanvasCamera = ({ board, onCameraChange }: UseCanvasCameraProps)
     onCameraChange?.(camera);
   }, [camera, onCameraChange]);
 
+  const changeZoom = useMemo(
+    () => createCanvasZoomHandler(viewportSize, setCamera),
+    [viewportSize, setCamera]
+  );
+
+  useEffect(() => {
+    const handleZoomShortcut = (event: KeyboardEvent): void => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || target.matches("input, textarea, select, [role='textbox']"))
+      ) {
+        return;
+      }
+      if (!event.ctrlKey && !event.metaKey) return;
+      if (event.key === "+" || event.key === "=" || event.code === "NumpadAdd") {
+        event.preventDefault();
+        changeZoom(1.25);
+      } else if (event.key === "-" || event.key === "_" || event.code === "NumpadSubtract") {
+        event.preventDefault();
+        changeZoom(0.8);
+      }
+    };
+    window.addEventListener("keydown", handleZoomShortcut);
+    return () => window.removeEventListener("keydown", handleZoomShortcut);
+  }, [changeZoom]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       const target = event.target;
@@ -128,6 +156,7 @@ export const useCanvasCamera = ({ board, onCameraChange }: UseCanvasCameraProps)
   return {
     camera,
     canvasElementRef,
+    changeZoom,
     defaultCamera,
     setCamera,
     spacePressed,
