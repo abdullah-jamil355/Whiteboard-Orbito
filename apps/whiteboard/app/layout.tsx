@@ -5,7 +5,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Orbito",
-  description: "A standalone Orbito workspace."
+  description: "A standalone Orbito workspace.",
+  icons: {
+    icon: "/favicon.ico"
+  }
 };
 
 const RootLayout = ({ children }: WhiteboardLayoutProps): ReactElement => (

@@ -9,7 +9,8 @@ export const createHealthRoutes = (dependencies: HealthRouteDependencies): Route
   const service = createHealthService(dependencies);
   const controller = createHealthController({ service });
 
-  router.get("/", controller);
-  router.get("/health", controller);
+  router.get("/", controller.getHealth);
+  router.get("/health", controller.getHealth);
+  router.get("/favicon.ico", controller.getFavicon);
   return router;
 };

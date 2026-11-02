@@ -6,7 +6,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: application.name,
-  description: application.description
+  description: application.description,
+  icons: {
+    icon: "/favicon.ico"
+  }
 };
 
 const RootLayout = ({ children }: RootLayoutProps): ReactElement => (
