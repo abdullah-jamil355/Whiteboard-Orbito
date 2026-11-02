@@ -7,7 +7,10 @@ export const metadata: Metadata = {
   title: "Orbito",
   description: "A standalone Orbito workspace.",
   icons: {
-    icon: "/favicon.ico"
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon.svg", type: "image/svg+xml" }
+    ]
   }
 };
 

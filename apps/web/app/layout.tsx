@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   title: application.name,
   description: application.description,
   icons: {
-    icon: "/favicon.ico"
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon.svg", type: "image/svg+xml" }
+    ]
   }
 };
 
