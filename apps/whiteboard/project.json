@@ -6,8 +6,8 @@
   "externalDependencies": ["@hocuspocus/provider", "lucide-react", "next", "react", "react-dom", "tailwindcss", "tsx", "ws", "yjs"],
   "capabilities": ["web", "standalone-whiteboard", "local-board", "server-backed-identity", "server-backed-sessions", "realtime-collaboration"],
   "tasks": {
-    "dev": { "command": "pnpm run dev", "environment": ["NEXT_PUBLIC_WHITEBOARD_API_ORIGIN", "NEXT_PUBLIC_WHITEBOARD_REALTIME_URL"], "cache": false },
-    "build": { "command": "pnpm run build", "environment": ["NEXT_PUBLIC_WHITEBOARD_API_ORIGIN", "NEXT_PUBLIC_WHITEBOARD_REALTIME_URL"], "outputs": [".next"], "cache": true },
+    "dev": { "command": "pnpm run dev", "environment": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_WHITEBOARD_API_ORIGIN", "NEXT_PUBLIC_WHITEBOARD_REALTIME_URL"], "cache": false },
+    "build": { "command": "pnpm run build", "environment": ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_WHITEBOARD_API_ORIGIN", "NEXT_PUBLIC_WHITEBOARD_REALTIME_URL"], "outputs": [".next"], "cache": true },
     "lint": { "command": "pnpm run lint", "cache": false },
     "typecheck": { "command": "pnpm run typecheck", "cache": false },
     "test": { "command": "pnpm test", "cache": false },

@@ -2,7 +2,7 @@
 
 import type { ReactElement } from "react";
 import Link from "next/link";
-import { Activity, ExternalLink, Pause, Play, RefreshCw } from "lucide-react";
+import { Activity, ExternalLink, Pause, Play, RefreshCw, RotateCcw } from "lucide-react";
 import { Button } from "@workspace/ui/primitives/button";
 
 export type ObservabilityHeaderProps = Readonly<{
@@ -10,6 +10,7 @@ export type ObservabilityHeaderProps = Readonly<{
   loading: boolean;
   prometheusUrl: string;
   onRefresh: () => void;
+  onReset?: () => void;
   onToggleAutoRefresh: () => void;
 }>;
 
@@ -18,6 +19,7 @@ export const ObservabilityHeader = ({
   loading,
   prometheusUrl,
   onRefresh,
+  onReset,
   onToggleAutoRefresh
 }: ObservabilityHeaderProps): ReactElement => {
   return (
@@ -81,6 +83,18 @@ export const ObservabilityHeader = ({
           >
             <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin text-cyan-400" : ""}`} /> Refresh
           </Button>
+
+          {onReset && (
+            <Button
+              className="bg-rose-500/10 text-rose-300 border border-rose-500/25 hover:bg-rose-500/20 hover:text-rose-200 transition-all shadow-[0_0_15px_rgba(244,63,94,0.12)]"
+              disabled={loading}
+              onClick={onReset}
+              size="sm"
+              variant="outline"
+            >
+              <RotateCcw className="h-4 w-4 mr-1.5" /> Reset KPIs
+            </Button>
+          )}
 
           <a href={prometheusUrl} rel="noreferrer" target="_blank">
             <Button

@@ -1,6 +1,6 @@
 import type { Board, BoardSession } from "@workspace/whiteboard";
 
-const apiOrigin = process.env.NEXT_PUBLIC_WHITEBOARD_API_ORIGIN ?? "http://localhost:4000";
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_WHITEBOARD_API_ORIGIN ?? "http://localhost:4000";
 
 const TOKEN_STORAGE_KEY = "wb_auth_token";
 const IDENTITY_STORAGE_KEY = "wb_auth_identity";

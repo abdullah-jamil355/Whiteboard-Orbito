@@ -56,6 +56,17 @@ export const fetchObservabilityStats = async (): Promise<ObservabilitySummary> =
   return response.json() as Promise<ObservabilitySummary>;
 };
 
+export const resetObservabilityStats = async (): Promise<void> => {
+  const response = await fetch(`${getApiBaseUrl()}/observability/reset`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to reset observability stats: ${response.status}`);
+  }
+};
+
 export const getPrometheusMetricsUrl = (): string => {
   return `${getApiBaseUrl()}/metrics`;
 };

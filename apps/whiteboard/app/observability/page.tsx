@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, type ReactElement } from "react";
 import { AlertTriangle } from "lucide-react";
 import {
   fetchObservabilityStats,
+  resetObservabilityStats,
   getPrometheusMetricsUrl,
   ObservabilityEndpointsTable,
   ObservabilityHeader,
@@ -41,6 +42,18 @@ export default function ObservabilityDashboardPage(): ReactElement {
     }
   }, []);
 
+  const handleReset = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      await resetObservabilityStats();
+      await loadStats();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reset metrics.");
+    } finally {
+      setLoading(false);
+    }
+  }, [loadStats]);
+
   useEffect(() => {
     void Promise.resolve().then(() => loadStats());
   }, [loadStats]);
@@ -69,6 +82,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
           isAutoRefresh={isAutoRefresh}
           loading={loading}
           onRefresh={() => void loadStats()}
+          onReset={() => void handleReset()}
           onToggleAutoRefresh={() => setIsAutoRefresh(!isAutoRefresh)}
           prometheusUrl={prometheusUrl}
         />

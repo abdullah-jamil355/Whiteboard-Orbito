@@ -12,6 +12,12 @@ export const createMonitoringController = ({ metrics }: Dependencies) => Object.
     res.status(HTTP_STATUS.ok).json(metrics.getSummary());
   },
 
+  resetStats: (_req: Request, res: Response): void => {
+    metrics.resetMetrics();
+    res.setHeader("Cache-Control", "no-store");
+    res.status(HTTP_STATUS.ok).json({ reset: true, timestamp: new Date().toISOString() });
+  },
+
   getMetrics: async (_req: Request, res: Response): Promise<void> => {
     try {
       const data = await metrics.getPrometheusMetrics();

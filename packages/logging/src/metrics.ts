@@ -60,6 +60,7 @@ export type MetricsRegistry = Readonly<{
   getSummary: () => ObservabilitySummary;
   getPrometheusMetrics: () => Promise<string>;
   getPrometheusContentType: () => string;
+  resetMetrics: () => void;
 }>;
 
 type MetricsOptions = Readonly<{
@@ -227,10 +228,19 @@ export const createMetricsRegistry = ({
     });
   };
 
+  const resetMetrics = (): void => {
+    totalRequestsCount = 0;
+    totalErrorsCount = 0;
+    cumulativeDurationMs = 0;
+    routeStatsMap.clear();
+    recentTraces.length = 0;
+  };
+
   return Object.freeze({
     recordRequest,
     getSummary,
     getPrometheusMetrics: () => register.metrics(),
-    getPrometheusContentType: () => register.contentType
+    getPrometheusContentType: () => register.contentType,
+    resetMetrics
   });
 };

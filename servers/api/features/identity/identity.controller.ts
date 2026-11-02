@@ -164,22 +164,21 @@ export const createIdentityController = ({ service, mailbox, config }: Controlle
       }
     },
     getCurrentIdentity: async (request: Request, response: Response): Promise<void> => {
+      response.setHeader("Cache-Control", "no-store");
       if (!service) {
-        unavailable(response);
+        response.status(HTTP_STATUS.ok).json({ identity: null, sessionToken: null });
         return;
       }
       try {
         const sessionToken = readIdentitySessionToken(request);
-        const identity = await service.getIdentityForSession(sessionToken);
-        if (!identity) {
-          response.setHeader("Cache-Control", "no-store");
+        if (!sessionToken) {
           response.status(HTTP_STATUS.ok).json({ identity: null, sessionToken: null });
           return;
         }
-        response.setHeader("Cache-Control", "no-store");
-        response.status(HTTP_STATUS.ok).json({ identity, sessionToken });
-      } catch (error) {
-        failureResponse(response, error);
+        const identity = await service.getIdentityForSession(sessionToken).catch(() => null);
+        response.status(HTTP_STATUS.ok).json({ identity: identity ?? null, sessionToken: identity ? sessionToken : null });
+      } catch {
+        response.status(HTTP_STATUS.ok).json({ identity: null, sessionToken: null });
       }
     },
     revokeCurrentSession: async (request: Request, response: Response): Promise<void> => {

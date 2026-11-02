@@ -60,4 +60,11 @@ void test("Monitoring routes and trace middleware expose metrics and trace recor
   const metricsText = await metricsRes.text();
   assert.ok(metricsText.includes("http_requests_total"));
   assert.ok(metricsText.includes("http_request_duration_seconds"));
+
+  // 4. Reset stats and verify counters zero out
+  const resetRes = await fetch(`${baseUrl}/observability/reset`, { method: "POST" });
+  assert.equal(resetRes.status, HTTP_STATUS.ok);
+  const statsAfterResetRes = await fetch(`${baseUrl}/observability/stats`);
+  const statsAfter = await statsAfterResetRes.json() as { totalRequests: number; errorRatePercent: number };
+  assert.equal(statsAfter.errorRatePercent, 0);
 });

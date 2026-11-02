@@ -9,7 +9,7 @@ export const getRealtimeUrl = (): string => {
   if (process.env.NEXT_PUBLIC_WHITEBOARD_REALTIME_URL) {
     return process.env.NEXT_PUBLIC_WHITEBOARD_REALTIME_URL;
   }
-  const apiOrigin = process.env.NEXT_PUBLIC_WHITEBOARD_API_ORIGIN;
+  const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_WHITEBOARD_API_ORIGIN;
   if (apiOrigin) {
     try {
       const url = new URL(apiOrigin);

@@ -11,6 +11,7 @@ export const createMonitoringRoutes = ({ metrics }: Dependencies): Router => {
   const controller = createMonitoringController({ metrics });
 
   router.get("/observability/stats", controller.getStats);
+  router.post("/observability/reset", controller.resetStats);
   router.get("/metrics", (req, res, next) => {
     controller.getMetrics(req, res).catch(next);
   });

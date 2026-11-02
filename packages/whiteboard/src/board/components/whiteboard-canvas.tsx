@@ -134,6 +134,7 @@ export const WhiteboardCanvas = ({
     cancelGesture, commitQuickConnector, continueGesture, deleteWaypoint,
     finishGesture, startDirectionalConnector, startGesture, startMidpointDrag,
     startPanGesture, startWaypointDrag
+    // eslint-disable-next-line react-hooks/refs
   } = createCanvasSurfaceGestures(gestureDependencies);
 
   const {
@@ -142,6 +143,7 @@ export const WhiteboardCanvas = ({
     handleTextPointerDown,
     startOtherObjectResize,
     startResize
+    // eslint-disable-next-line react-hooks/refs
   } = createCanvasObjectInteractions(gestureDependencies);
 
   const handleSurfacePointerMove = (event: ReactPointerEvent<SVGSVGElement>): void => {
