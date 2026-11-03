@@ -101,6 +101,30 @@ export default function ObservabilityDashboardPage(): ReactElement {
         />
 
         {data && (
+          <section aria-labelledby="active-rooms-title" className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E1526]/70 shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold text-white" id="active-rooms-title">Current live rooms</h2>
+                <p className="mt-1 text-xs text-slate-400">Rooms with at least one connected realtime participant</p>
+              </div>
+              <span className="rounded-full border border-purple-400/20 bg-purple-400/10 px-2.5 py-1 text-xs font-medium text-purple-200">{data.activeRooms.length} active</span>
+            </div>
+            {data.activeRooms.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-slate-400">No live rooms are connected right now.</p>
+            ) : (
+              <ul className="divide-y divide-white/[0.06]">
+                {data.activeRooms.map((room) => (
+                  <li className="flex items-center justify-between gap-4 px-5 py-3" key={room.sessionId}>
+                    <span className="truncate font-mono text-xs text-slate-300" title={room.sessionId}>{room.sessionId}</span>
+                    <span className="shrink-0 text-xs text-slate-400">{room.connections} {room.connections === 1 ? "participant" : "participants"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {data && (
           <ObservabilitySystemTelemetry
             lastRefreshed={lastRefreshed}
             system={data.system}

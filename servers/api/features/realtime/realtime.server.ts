@@ -199,6 +199,18 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     },
     isMemberConnected: (sessionId: string, identityId: string): boolean =>
       [...connections.values()].some((connection) => connection.context.sessionId === sessionId && connection.context.identityId === identityId),
+    getActiveConnectionsCount: (): number => connections.size,
+    getActiveRooms: (): readonly Readonly<{ sessionId: string; connections: number }>[] => {
+      const roomConnections = new Map<string, number>();
+      for (const connection of connections.values()) {
+        const sessionId = connection.context.sessionId;
+        roomConnections.set(sessionId, (roomConnections.get(sessionId) ?? 0) + 1);
+      }
+      return Object.freeze([...roomConnections.entries()]
+        .map(([sessionId, count]) => Object.freeze({ sessionId, connections: count }))
+        .sort((left, right) => left.sessionId.localeCompare(right.sessionId)));
+    },
+    getActiveSessionsCount: (): number => new Set([...connections.values()].map((connection) => connection.context.sessionId)).size,
     closeSessionConnections: (sessionId: string): void => {
       for (const [connectionId, connection] of connections) {
         if (connection.context.sessionId !== sessionId) continue;

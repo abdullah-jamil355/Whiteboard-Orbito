@@ -35,7 +35,10 @@ const realtime = config.mongodbUri
 const app = createApp({ config, logger, ...(realtime ? {
   closeSessionConnections: realtime.closeSessionConnections,
   closeMemberConnections: realtime.closeMemberConnections,
-  isMemberConnected: realtime.isMemberConnected
+  isMemberConnected: realtime.isMemberConnected,
+  getActiveRooms: realtime.getActiveRooms,
+  getActiveConnectionsCount: realtime.getActiveConnectionsCount,
+  getActiveSessionsCount: realtime.getActiveSessionsCount
 } : {}) });
 const server = createServer({ app, config, logger });
 const shutdown = createShutdown({ database, logger, server });

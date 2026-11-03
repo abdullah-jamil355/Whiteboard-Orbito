@@ -39,6 +39,7 @@ export type ObservabilitySummary = Readonly<{
   errorRatePercent: number;
   activeSessions: number;
   activeConnections: number;
+  activeRooms: readonly Readonly<{ sessionId: string; connections: number }>[];
   system: SystemHealthKpi;
   endpoints: readonly RouteMetric[];
   recentTraces: readonly TraceRecord[];
@@ -64,16 +65,23 @@ export type MetricsRegistry = Readonly<{
 }>;
 
 type MetricsOptions = Readonly<{
+  getActiveRooms?: () => readonly Readonly<{ sessionId: string; connections: number }>[];
   getActiveSessionsCount?: () => number;
   getActiveConnectionsCount?: () => number;
   maxRecentTraces?: number;
 }>;
 
 export const createMetricsRegistry = ({
+  getActiveRooms,
   getActiveSessionsCount = () => 0,
   getActiveConnectionsCount = () => 0,
   maxRecentTraces = 100
 }: MetricsOptions = {}): MetricsRegistry => {
+  const readActiveRooms = (): readonly Readonly<{ sessionId: string; connections: number }>[] =>
+    getActiveRooms?.() ?? Object.freeze([]);
+  const readActiveSessionsCount = (): number => getActiveRooms === undefined
+    ? getActiveSessionsCount()
+    : readActiveRooms().length;
   const register = new client.Registry();
   register.setDefaultLabels({ app: "orbito-api" });
   client.collectDefaultMetrics({ register });
@@ -98,7 +106,7 @@ export const createMetricsRegistry = ({
     help: "Number of currently active Whiteboard sessions",
     registers: [register],
     collect() {
-      this.set(getActiveSessionsCount());
+      this.set(readActiveSessionsCount());
     }
   });
 
@@ -220,8 +228,9 @@ export const createMetricsRegistry = ({
       requestsPerMinute,
       averageLatencyMs,
       errorRatePercent,
-      activeSessions: getActiveSessionsCount(),
+      activeSessions: readActiveSessionsCount(),
       activeConnections: getActiveConnectionsCount(),
+      activeRooms: readActiveRooms(),
       system: getSystemHealth(),
       endpoints,
       recentTraces: [...recentTraces]

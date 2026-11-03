@@ -27,6 +27,7 @@ export type ObservabilitySummary = Readonly<{
   errorRatePercent: number;
   activeSessions: number;
   activeConnections: number;
+  activeRooms: readonly Readonly<{ sessionId: string; connections: number }>[];
   system: Readonly<{
     heapUsedMb: number;
     heapTotalMb: number;

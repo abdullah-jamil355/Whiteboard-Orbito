@@ -26,7 +26,13 @@ const readSessionToken = (request: Request): string | undefined => {
 
 export const createApiRateLimitMiddleware = ({ reserve }: ApiRateLimitDependencies): RequestHandler =>
   (request, response, next) => {
-    if (request.path === "/health") {
+    if (
+      request.method === "OPTIONS" ||
+      request.path === "/health" ||
+      request.path === "/favicon.ico" ||
+      request.path.startsWith("/observability") ||
+      request.path === "/metrics"
+    ) {
       next();
       return;
     }

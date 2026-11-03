@@ -53,7 +53,14 @@ const reserveRateLimitCounter: IdentityRepository["reserveRateLimitCounter"] = a
     ).exec();
     return true;
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === 11_000) return false;
+    if (typeof error === "object" && error !== null && "code" in error && error.code === 11_000) {
+      const retried = await WbMagicLinkRateLimitModel.findOneAndUpdate(
+        { keyHash, windowStart, count: { $lt: limit } },
+        { $inc: { count: 1 } },
+        { returnDocument: "after" }
+      ).exec();
+      return Boolean(retried);
+    }
     throw error;
   }
 };

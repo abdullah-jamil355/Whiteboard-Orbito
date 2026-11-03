@@ -25,13 +25,29 @@ type AppDependencies = Readonly<{
   closeSessionConnections?: (sessionId: string) => void;
   closeMemberConnections?: (sessionId: string, identityId: string) => void;
   isMemberConnected?: (sessionId: string, identityId: string) => boolean;
+  getActiveRooms?: () => readonly Readonly<{ sessionId: string; connections: number }>[];
+  getActiveConnectionsCount?: () => number;
+  getActiveSessionsCount?: () => number;
 }>;
 
-export const createApp = ({ config, logger, closeSessionConnections, closeMemberConnections, isMemberConnected }: AppDependencies): Express => {
+export const createApp = ({
+  config,
+  logger,
+  closeSessionConnections,
+  closeMemberConnections,
+  isMemberConnected,
+  getActiveRooms,
+  getActiveConnectionsCount,
+  getActiveSessionsCount
+}: AppDependencies): Express => {
   const app = express();
   app.disable("x-powered-by");
   if (config.apiTrustProxyHops !== undefined) app.set("trust proxy", config.apiTrustProxyHops);
-  const metrics = createMetricsRegistry();
+  const metrics = createMetricsRegistry({
+    ...(getActiveRooms ? { getActiveRooms } : {}),
+    ...(getActiveSessionsCount ? { getActiveSessionsCount } : {}),
+    ...(getActiveConnectionsCount ? { getActiveConnectionsCount } : {})
+  });
   app.use((req, res, next) => {
     createTraceMiddleware(metrics)(req, res, next);
   });
