@@ -25,6 +25,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
   // Sparkline history rolling windows
   const [throughputHistory, setThroughputHistory] = useState<readonly number[]>([4, 8, 6, 12, 9, 16, 14, 20]);
   const [latencyHistory, setLatencyHistory] = useState<readonly number[]>([45, 62, 55, 48, 70, 64, 52, 58]);
+  const [roomHistory, setRoomHistory] = useState<readonly number[]>([0, 0, 0, 0, 0, 0]);
 
   const loadStats = useCallback(async (): Promise<void> => {
     try {
@@ -35,6 +36,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
 
       setThroughputHistory((prev) => [...prev.slice(-12), stats.requestsPerMinute]);
       setLatencyHistory((prev) => [...prev.slice(-12), stats.averageLatencyMs]);
+      setRoomHistory((prev) => [...prev.slice(-12), stats.activeSessions]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load observability data.");
     } finally {
@@ -97,6 +99,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
         <ObservabilityKpiGrid
           data={data}
           latencyHistory={latencyHistory}
+          roomHistory={roomHistory}
           throughputHistory={throughputHistory}
         />
 

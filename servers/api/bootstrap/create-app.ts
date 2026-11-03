@@ -15,7 +15,7 @@ import {
   unavailableIdentityMailer,
   unavailableInvitationMailer
 } from "../features/identity/index.js";
-import { createSessionRepository, createSessionRoutes, createSessionService } from "../features/sessions/index.js";
+import { createSessionRepository, createSessionRoutes, createSessionService, findActiveRooms } from "../features/sessions/index.js";
 import { createInvitationMailer, createInvitationRepository, createInvitationRoutes, createInvitationService } from "../features/invitations/index.js";
 import { createApiRateLimitMiddleware, createCorsMiddleware, createErrorHandler, createNotFoundHandler } from "../middleware/index.js";
 
@@ -144,7 +144,7 @@ export const createApp = ({
       environment: config.environment,
       serviceName: apiRuntime.serviceName
     }),
-    createMonitoringRoutes({ metrics }),
+    createMonitoringRoutes({ metrics, ...(config.mongodbUri ? { findActiveRooms } : {}) }),
     createIdentityRoutes({
       service: identityService,
       mailbox,

@@ -205,6 +205,18 @@ export const createSessionRepository = (): RealtimeSessionRepository => Object.f
   }
 });
 
+export const findActiveRooms = async (): Promise<readonly Readonly<{ sessionId: string; connections: number }>[]> => {
+  const now = Date.now();
+  const sessions = await WbBoardSessionModel.find({ status: "active" })
+    .select({ _id: 1, activeConnections: 1 })
+    .lean()
+    .exec();
+  return Object.freeze(sessions.map((session) => Object.freeze({
+    sessionId: objectIdToString(session._id),
+    connections: session.activeConnections.filter((connection) => connection.leaseExpiresAt.getTime() > now).length
+  })).sort((left, right) => left.sessionId.localeCompare(right.sessionId)));
+};
+
 export const ensureSessionIndexes = async (): Promise<void> => {
   await WbBoardSessionModel.updateMany({ $or: [{ memberIdentityIds: { $exists: false } }, { sequence: { $exists: false } }] }, [{ $set: { memberIdentityIds: { $ifNull: ["$memberIdentityIds", ["$ownerIdentityId"]] }, sequence: { $ifNull: ["$sequence", 0] } } }], { updatePipeline: true }).exec();
   await Promise.all([WbBoardSessionModel.createIndexes(), WbBoardOperationModel.createIndexes(), WbBoardSnapshotModel.createIndexes(), WbBoardHistoryModel.createIndexes()]);

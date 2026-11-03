@@ -13,6 +13,7 @@ export type BoardSession = Readonly<{
   endedAt: Date | null;
 }>;
 export type ActiveBoardSession = Readonly<{ id: string; title: string; sequence: number; updatedAt: Date }>;
+export type ActiveRoomObservation = Readonly<{ sessionId: string; connections: number }>;
 export type ActiveConnection = Readonly<{ identityId: string; connectionId: string; leaseExpiresAt: Date }>;
 export type AppliedBoardEdit = Readonly<{ actionId: string; board: BoardSnapshot; sequence: number; history: WhiteboardHistoryState }>;
 export type BoardHistoryAction = "undo" | "redo";

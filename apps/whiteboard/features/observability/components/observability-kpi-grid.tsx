@@ -8,12 +8,14 @@ import type { ObservabilitySummary } from "../observability.api";
 export type ObservabilityKpiGridProps = Readonly<{
   data: ObservabilitySummary | null;
   latencyHistory: readonly number[];
+  roomHistory: readonly number[];
   throughputHistory: readonly number[];
 }>;
 
 export const ObservabilityKpiGrid = ({
   data,
   latencyHistory,
+  roomHistory,
   throughputHistory
 }: ObservabilityKpiGridProps): ReactElement => {
   return (
@@ -122,7 +124,7 @@ export const ObservabilityKpiGrid = ({
           </span>
         </div>
         <div className="mt-3 pt-2 border-t border-white/5">
-          <Sparkline color="#a855f7" data={[1, 1, 2, 1, 2, 3]} fillId="sparkCollab" />
+          <Sparkline color="#a855f7" data={roomHistory} fillId="sparkCollab" />
         </div>
       </div>
     </section>
