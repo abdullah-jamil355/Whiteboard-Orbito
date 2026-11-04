@@ -13,6 +13,7 @@ export const createMonitoringRoutes = ({ metrics, findActiveRooms }: Dependencie
   const controller = createMonitoringController({ metrics, ...(findActiveRooms ? { findActiveRooms } : {}) });
 
   router.get("/observability/stats", controller.getStats);
+  router.get("/observability/traces/:traceId", controller.getTrace);
   router.post("/observability/reset", controller.resetStats);
   router.get("/metrics", (req, res, next) => {
     controller.getMetrics(req, res).catch(next);

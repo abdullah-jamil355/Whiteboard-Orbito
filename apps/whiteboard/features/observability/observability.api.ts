@@ -7,6 +7,9 @@ export type ObservabilityTrace = Readonly<{
   durationMs: number;
   ip: string;
   error?: string;
+  errorCode?: string;
+  errorType?: string;
+  errorDetails?: unknown;
 }>;
 
 export type ObservabilityEndpointStat = Readonly<{
@@ -55,6 +58,19 @@ export const fetchObservabilityStats = async (): Promise<ObservabilitySummary> =
   }
 
   return response.json() as Promise<ObservabilitySummary>;
+};
+
+export const fetchObservabilityTrace = async (traceId: string): Promise<ObservabilityTrace> => {
+  const response = await fetch(`${getApiBaseUrl()}/observability/traces/${encodeURIComponent(traceId)}`, {
+    cache: "no-store",
+    headers: { Accept: "application/json" }
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+    throw new Error(body?.error?.message ?? `Failed to find trace: ${response.status}`);
+  }
+  const body = await response.json() as { trace: ObservabilityTrace };
+  return body.trace;
 };
 
 export const resetObservabilityStats = async (): Promise<void> => {

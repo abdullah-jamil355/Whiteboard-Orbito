@@ -64,7 +64,7 @@ export const createTraceMiddleware = (metrics: MetricsRegistry): MiddlewareFunct
       const statusCode = res.statusCode;
       const ip = (req.ip || req.socket.remoteAddress || "127.0.0.1").replace(/^.*:/, "");
 
-      if (route !== "/metrics" && route !== "/observability/stats" && route !== "/favicon.ico") {
+      if (route !== "/metrics" && route !== "/observability/stats" && route !== "/observability/reset" && route !== "/observability/traces/:traceId" && route !== "/favicon.ico") {
         metrics.recordRequest({
           traceId,
           method: req.method || "GET",

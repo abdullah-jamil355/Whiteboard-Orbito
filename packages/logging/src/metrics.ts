@@ -9,7 +9,17 @@ export type TraceRecord = Readonly<{
   durationMs: number;
   ip: string;
   error?: string;
+  errorCode?: string;
+  errorType?: string;
+  errorDetails?: unknown;
   details?: Readonly<Record<string, unknown>>;
+}>;
+
+export type TraceFailure = Readonly<{
+  code: string;
+  type: string;
+  message: string;
+  details?: unknown;
 }>;
 
 export type RouteMetric = Readonly<{
@@ -58,6 +68,8 @@ export type RecordRequestParams = Readonly<{
 
 export type MetricsRegistry = Readonly<{
   recordRequest: (params: RecordRequestParams) => void;
+  recordTraceFailure: (traceId: string, failure: TraceFailure) => void;
+  findTrace: (traceId: string) => TraceRecord | undefined;
   getSummary: () => ObservabilitySummary;
   getPrometheusMetrics: () => Promise<string>;
   getPrometheusContentType: () => string;
@@ -120,6 +132,7 @@ export const createMetricsRegistry = ({
   });
 
   const recentTraces: TraceRecord[] = [];
+  const pendingTraceFailures = new Map<string, TraceFailure>();
   const routeStatsMap = new Map<string, {
     method: string;
     route: string;
@@ -147,6 +160,8 @@ export const createMetricsRegistry = ({
     httpRequestsTotal.inc({ method: params.method, route: params.route, status: statusCategory });
     httpRequestDuration.observe({ method: params.method, route: params.route, status: statusCategory }, params.durationMs / 1000);
 
+    const failure = pendingTraceFailures.get(params.traceId);
+    pendingTraceFailures.delete(params.traceId);
     const record: TraceRecord = Object.freeze({
       traceId: params.traceId,
       timestamp: new Date().toISOString(),
@@ -155,7 +170,16 @@ export const createMetricsRegistry = ({
       statusCode: params.statusCode,
       durationMs: Math.round(params.durationMs * 10) / 10,
       ip: params.ip,
-      ...(params.error ? { error: params.error } : {}),
+      ...(failure ? {
+        error: failure.message,
+        errorCode: failure.code,
+        errorType: failure.type,
+        ...(failure.details === undefined ? {} : { errorDetails: failure.details })
+      } : params.error ? { error: params.error } : params.statusCode >= 400 ? {
+        error: `Request returned HTTP ${String(params.statusCode)} without a captured application error.`,
+        errorCode: `http_${String(params.statusCode)}`,
+        errorType: "HttpError"
+      } : {}),
       ...(params.details ? { details: params.details } : {})
     });
 
@@ -243,10 +267,15 @@ export const createMetricsRegistry = ({
     cumulativeDurationMs = 0;
     routeStatsMap.clear();
     recentTraces.length = 0;
+    pendingTraceFailures.clear();
   };
 
   return Object.freeze({
     recordRequest,
+    recordTraceFailure: (traceId: string, failure: TraceFailure): void => {
+      pendingTraceFailures.set(traceId, failure);
+    },
+    findTrace: (traceId: string): TraceRecord | undefined => recentTraces.find((trace) => trace.traceId === traceId),
     getSummary,
     getPrometheusMetrics: () => register.metrics(),
     getPrometheusContentType: () => register.contentType,

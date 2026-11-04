@@ -7,6 +7,7 @@ export { SpaceCosmosBackground } from "./components/space-cosmos-background";
 export { formatUptime, getMethodBadgeClass, getStatusBadge } from "./observability.utils";
 export {
   fetchObservabilityStats,
+  fetchObservabilityTrace,
   resetObservabilityStats,
   getPrometheusMetricsUrl,
   type ObservabilitySummary,

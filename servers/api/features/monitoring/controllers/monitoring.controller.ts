@@ -17,6 +17,21 @@ export const createMonitoringController = ({ metrics, findActiveRooms }: Depende
     res.status(HTTP_STATUS.ok).json({ ...summary, activeSessions: activeRooms.length, activeConnections, activeRooms });
   },
 
+  getTrace: (req: Request<{ traceId: string }>, res: Response): void => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    const { traceId } = req.params;
+    if (!/^[a-zA-Z0-9_-]{8,64}$/.test(traceId)) {
+      res.status(HTTP_STATUS.badRequest).json({ error: { code: "invalid_trace_id", message: "Enter a valid trace ID." } });
+      return;
+    }
+    const trace = metrics.findTrace(traceId);
+    if (!trace) {
+      res.status(HTTP_STATUS.notFound).json({ error: { code: "trace_not_found", message: "Trace was not found in this API instance's recent request history." } });
+      return;
+    }
+    res.status(HTTP_STATUS.ok).json({ trace });
+  },
+
   resetStats: (_req: Request, res: Response): void => {
     metrics.resetMetrics();
     res.setHeader("Cache-Control", "no-store");

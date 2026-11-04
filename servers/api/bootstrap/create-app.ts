@@ -157,6 +157,6 @@ export const createApp = ({
   ];
   for (const featureRouter of featureRouters) app.use(featureRouter);
   app.use(createNotFoundHandler());
-  app.use(createErrorHandler({ logger }));
+  app.use(createErrorHandler({ logger, metrics }));
   return app;
 };

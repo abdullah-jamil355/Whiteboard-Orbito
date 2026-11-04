@@ -11,3 +11,4 @@ export type {
   TraceRecord,
   RecordRequestParams
 } from "./metrics.js";
+export type { TraceFailure } from "./metrics.js";

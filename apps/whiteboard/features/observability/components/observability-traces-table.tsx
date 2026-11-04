@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactElement } from "react";
 import { ArrowUpRight, Check, Search } from "lucide-react";
 import { Badge } from "@workspace/ui/primitives/badge";
-import type { ObservabilitySummary } from "../observability.api";
+import { fetchObservabilityTrace, type ObservabilitySummary, type ObservabilityTrace } from "../observability.api";
 import { getMethodBadgeClass, getStatusBadge } from "../observability.utils";
 
 export type ObservabilityTracesTableProps = Readonly<{
@@ -25,6 +25,28 @@ export const ObservabilityTracesTable = ({
   const [traceSearch, setTraceSearch] = useState("");
   const [traceFilter, setTraceFilter] = useState<TraceFilterType>("all");
   const [copiedTrace, setCopiedTrace] = useState<string | null>(null);
+  const [selectedTrace, setSelectedTrace] = useState<ObservabilityTrace | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookupBusy, setLookupBusy] = useState(false);
+
+  const lookupTrace = async (): Promise<void> => {
+    const traceId = traceSearch.trim();
+    if (!traceId) {
+      setSelectedTrace(null);
+      setLookupError("Enter a trace ID to inspect the request.");
+      return;
+    }
+    setLookupBusy(true);
+    setLookupError(null);
+    try {
+      setSelectedTrace(await fetchObservabilityTrace(traceId));
+    } catch (error) {
+      setSelectedTrace(null);
+      setLookupError(error instanceof Error ? error.message : "Could not load this trace.");
+    } finally {
+      setLookupBusy(false);
+    }
+  };
 
   const copyTraceId = (id: string): void => {
     void navigator.clipboard.writeText(id);
@@ -72,11 +94,19 @@ export const ObservabilityTracesTable = ({
             <input
               className="w-full h-9 pl-9 pr-4 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all"
               onChange={(e) => setTraceSearch(e.target.value)}
-              placeholder="Filter by Trace ID, route, or IP..."
+              onKeyDown={(event) => { if (event.key === "Enter") void lookupTrace(); }}
+              placeholder="Paste a Trace ID to inspect the request..."
               type="text"
               value={traceSearch}
             />
           </div>
+
+          <button
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/20 disabled:cursor-wait disabled:opacity-60"
+            disabled={lookupBusy}
+            onClick={() => void lookupTrace()}
+            type="button"
+          ><Search className="h-3.5 w-3.5" />{lookupBusy ? "Searching…" : "Inspect trace"}</button>
 
           <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.03] border border-white/[0.08]">
             {FILTER_TABS.map((tab) => (
@@ -95,6 +125,33 @@ export const ObservabilityTracesTable = ({
             ))}
           </div>
         </div>
+        {lookupError && <p aria-live="polite" className="text-xs text-rose-300">{lookupError}</p>}
+        {selectedTrace && (
+          <section aria-label="Trace details" className="rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.04] p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Request trace details</h3>
+                <p className="mt-1 break-all font-mono text-[11px] text-cyan-200">{selectedTrace.traceId}</p>
+              </div>
+              {getStatusBadge(selectedTrace.statusCode)}
+            </div>
+            <dl className="grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
+              <div><dt className="text-slate-500">Timestamp</dt><dd className="mt-1 text-slate-200">{new Date(selectedTrace.timestamp).toLocaleString()}</dd></div>
+              <div><dt className="text-slate-500">Request</dt><dd className="mt-1 font-mono text-slate-200">{selectedTrace.method} {selectedTrace.route}</dd></div>
+              <div><dt className="text-slate-500">Duration</dt><dd className="mt-1 text-slate-200">{selectedTrace.durationMs} ms</dd></div>
+              <div><dt className="text-slate-500">Client IP</dt><dd className="mt-1 font-mono text-slate-200">{selectedTrace.ip}</dd></div>
+              <div><dt className="text-slate-500">Error code</dt><dd className="mt-1 font-mono text-rose-200">{selectedTrace.errorCode ?? "—"}</dd></div>
+              <div><dt className="text-slate-500">Error type</dt><dd className="mt-1 text-slate-200">{selectedTrace.errorType ?? "—"}</dd></div>
+              <div className="sm:col-span-2 lg:col-span-3"><dt className="text-slate-500">Why the request failed</dt><dd className="mt-1 break-words text-slate-200">{selectedTrace.error ?? "This request completed without a recorded error."}</dd></div>
+            </dl>
+            {selectedTrace.errorDetails !== undefined && (
+              <div className="mt-3 border-t border-white/[0.08] pt-3">
+                <h4 className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Safe error details</h4>
+                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-black/20 p-3 font-mono text-[11px] text-slate-300">{JSON.stringify(selectedTrace.errorDetails, null, 2)}</pre>
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       <div className="overflow-x-auto max-h-[500px]">
