@@ -9,6 +9,7 @@ import {
   type TextObject, type WhiteboardTool
 } from "..";
 import { PaletteChoices } from "./palette-choices";
+import { ToolbarSelect } from "./toolbar-select";
 import {
   ToolbarConnectorsMenu,
   type ToolbarMenuKind,
@@ -129,60 +130,23 @@ export const WorkspaceToolbar = (props: WorkspaceToolbarProps): ReactElement => 
       {selectedTool === "pen" && (
         <div className="wb-pen-controls" role="group" aria-label="Pen settings">
           <PaletteChoices label="Pen color" selectedColor={penColor} onChoose={setPenColor} />
-          <select
-            aria-label="Pen line weight" className="wb-line-weight-select"
-            onChange={(event) => isLineWeight(event.currentTarget.value) && setPenLineWeight(event.currentTarget.value)}
-            value={penLineWeight}
-          >
-            <option value="thin">Thin line</option><option value="medium">Medium line</option><option value="thick">Thick line</option>
-          </select>
+          <ToolbarSelect aria-label="Pen line weight" className="wb-line-weight-select" onChange={(value) => isLineWeight(value) && setPenLineWeight(value)} options={[{ value: "thin", label: "Thin line" }, { value: "medium", label: "Medium line" }, { value: "thick", label: "Thick line" }]} value={penLineWeight} />
         </div>
       )}
 
       {isLineTool && (
         <div className="wb-line-controls" role="group" aria-label="Line settings">
           <PaletteChoices label="Line color" selectedColor={lineColor} onChoose={setLineColor} />
-          <select
-            aria-label="Line weight" className="wb-line-weight-select"
-            onChange={(event) => isLineWeight(event.currentTarget.value) && setLineLineWeight(event.currentTarget.value)}
-            value={lineLineWeight}
-          >
-            <option value="thin">Thin</option><option value="medium">Medium</option><option value="thick">Thick</option>
-          </select>
-          <select
-            aria-label="Connector routing" className="wb-line-weight-select"
-            onChange={(event) => CONNECTOR_ROUTINGS.includes(event.currentTarget.value as ConnectorRouting) && setConnectorRouting(event.currentTarget.value as ConnectorRouting)}
-            value={connectorRouting}
-          >
-            <option value="orthogonal">Orthogonal</option><option value="straight">Straight</option><option value="curved">Curved</option>
-          </select>
+          <ToolbarSelect aria-label="Line weight" className="wb-line-weight-select" onChange={(value) => isLineWeight(value) && setLineLineWeight(value)} options={[{ value: "thin", label: "Thin" }, { value: "medium", label: "Medium" }, { value: "thick", label: "Thick" }]} value={lineLineWeight} />
+          <ToolbarSelect aria-label="Connector routing" className="wb-line-weight-select" onChange={(value) => CONNECTOR_ROUTINGS.includes(value as ConnectorRouting) && setConnectorRouting(value as ConnectorRouting)} options={[{ value: "orthogonal", label: "Orthogonal" }, { value: "straight", label: "Straight" }, { value: "curved", label: "Curved" }]} value={connectorRouting} />
         </div>
       )}
 
       {showShapeStyle && (
         <div className="wb-shape-style-controls" role="group" aria-label="Shape style">
           <PaletteChoices label="Stroke color" selectedColor={currentShapeStroke} onChoose={chooseShapeStroke} />
-          <label className="sr-only" htmlFor="wb-shape-fill">Shape fill</label>
-          <select
-            aria-label="Shape fill"
-            className="wb-line-weight-select"
-            id="wb-shape-fill"
-            onChange={(event) => chooseShapeFill(event.currentTarget.value)}
-            value={currentShapeFill}
-          >
-            <option value="none">No fill</option>
-            {!WHITEBOARD_PALETTE.some((color) => color.value === currentShapeFill) && currentShapeFill !== "none" && (
-              <option value={currentShapeFill}>Current fill</option>
-            )}
-            {WHITEBOARD_PALETTE.map((color) => <option key={color.value} value={color.value}>{color.name}</option>)}
-          </select>
-          <select
-            aria-label="Shape border line weight" className="wb-line-weight-select"
-            onChange={(event) => chooseShapeLineWeight(event.currentTarget.value)}
-            value={currentShapeWeight}
-          >
-            <option value="thin">Thin border</option><option value="medium">Medium border</option><option value="thick">Thick border</option>
-          </select>
+          <ToolbarSelect aria-label="Shape fill" className="wb-line-weight-select" onChange={chooseShapeFill} options={[{ value: "none", label: "No Fill" }, ...(!WHITEBOARD_PALETTE.some((color) => color.value === currentShapeFill) && currentShapeFill !== "none" ? [{ value: currentShapeFill, label: "Current fill" }] : []), ...WHITEBOARD_PALETTE.map((color) => ({ value: color.value, label: color.name }))]} value={currentShapeFill} />
+          <ToolbarSelect aria-label="Shape border line weight" className="wb-line-weight-select" onChange={chooseShapeLineWeight} options={[{ value: "thin", label: "Thin Border" }, { value: "medium", label: "Medium Border" }, { value: "thick", label: "Thick Border" }]} value={currentShapeWeight} />
         </div>
       )}
 

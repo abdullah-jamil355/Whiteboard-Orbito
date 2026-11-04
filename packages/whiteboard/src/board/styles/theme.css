@@ -52,6 +52,34 @@
   border-color: var(--border);
   background: var(--wb-surface-raised);
   color: var(--foreground);
+  color-scheme: dark;
+}
+:root[data-theme="dark"] .wb-text-size-select option,
+:root[data-theme="dark"] .wb-line-weight-select option {
+  background-color: var(--wb-surface-raised, #1b2635);
+  color: var(--foreground, #e8edf5);
+}
+:root[data-theme="dark"] .wb-toolbar-select {
+  border-color: #344862;
+  background-color: #1d2b3e;
+  color: #eaf1fb;
+}
+:root[data-theme="dark"] .wb-toolbar-select-menu {
+  border-color: #344862;
+  background-color: #1d2b3e;
+  color: #eaf1fb;
+}
+:root[data-theme="dark"] .wb-toolbar-select-option {
+  background-color: transparent;
+  color: #eaf1fb;
+}
+:root[data-theme="dark"] .wb-toolbar-select-option:hover,
+:root[data-theme="dark"] .wb-toolbar-select-option:focus-visible {
+  background-color: #2a3e57;
+}
+:root[data-theme="dark"] .wb-toolbar-select-option[aria-selected="true"] {
+  background-color: #378ce9;
+  color: #fff;
 }
 
 :root[data-theme="dark"] .wb-camera-controls {
