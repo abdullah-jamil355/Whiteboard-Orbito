@@ -214,7 +214,9 @@ export const findActiveRooms = async (): Promise<readonly Readonly<{ sessionId: 
   return Object.freeze(sessions.map((session) => Object.freeze({
     sessionId: objectIdToString(session._id),
     connections: session.activeConnections.filter((connection) => connection.leaseExpiresAt.getTime() > now).length
-  })).sort((left, right) => left.sessionId.localeCompare(right.sessionId)));
+  }))
+    .filter((room) => room.connections > 0)
+    .sort((left, right) => left.sessionId.localeCompare(right.sessionId)));
 };
 
 export const ensureSessionIndexes = async (): Promise<void> => {
