@@ -230,6 +230,17 @@
   border-left: 1px solid var(--border);
 }
 
+.wb-shape-style-controls {
+  display: grid;
+  width: max-content;
+  grid-template-columns: repeat(2, 108px);
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+.wb-shape-style-controls > .wb-pen-colors { grid-column: 1 / -1; }
+
 .wb-color-choice {
   width: 30px;
   height: 30px;
