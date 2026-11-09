@@ -1,5 +1,5 @@
 import type { Connection } from "@hocuspocus/server";
-import type { Logger } from "@workspace/logging";
+import type { Logger, MetricsRegistry } from "@workspace/logging";
 import type { RealtimeInvitationRepository } from "../invitations/public.js";
 import type { RealtimeSessionRepository } from "../sessions/public.js";
 import { BoardEditRejected, realtimeClientMessageSchema } from "../sessions/public.js";
@@ -38,6 +38,7 @@ type StatelessDependencies = Readonly<{
   enqueueSession: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>;
   invitations: RealtimeInvitationRepository;
   logger: Logger;
+  metrics: MetricsRegistry;
   maximumCommandsPerWindow: number;
   sessions: RealtimeSessionRepository;
 }>;
@@ -140,6 +141,7 @@ export const handleRealtimeStatelessMessage = async (
             history: result.history
           })
         );
+        deps.metrics.recordRealtimeActivity({ event: parsed.data.type === "board:undo" ? "board.undo" : "board.redo", sessionId: context.sessionId, role: context.role });
       } catch (error) {
         if (error instanceof BoardEditRejected) {
           connection.sendStateless(JSON.stringify({ type: "board:rejected", actionId, reason: error.reason }));
@@ -193,6 +195,7 @@ export const handleRealtimeStatelessMessage = async (
           history: result.history
         })
       );
+      deps.metrics.recordRealtimeActivity({ event: "board.edit", sessionId: context.sessionId, role: context.role, count: command.changes.length });
     } catch (error) {
       if (error instanceof BoardEditRejected) {
         connection.sendStateless(

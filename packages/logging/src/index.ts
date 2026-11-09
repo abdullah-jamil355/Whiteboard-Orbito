@@ -9,6 +9,8 @@ export type {
   RouteMetric,
   SystemHealthKpi,
   TraceRecord,
-  RecordRequestParams
+  RecordRequestParams,
+  RealtimeActivity,
+  RealtimeActivityInput
 } from "./metrics.js";
 export type { TraceFailure } from "./metrics.js";

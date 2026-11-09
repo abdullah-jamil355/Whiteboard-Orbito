@@ -41,6 +41,13 @@ export type ObservabilitySummary = Readonly<{
   }>;
   endpoints: readonly ObservabilityEndpointStat[];
   recentTraces: readonly ObservabilityTrace[];
+  recentRealtimeActivity: readonly Readonly<{
+    event: string;
+    timestamp: string;
+    sessionId: string;
+    role: string;
+    count?: number;
+  }>[];
 }>;
 
 const getApiBaseUrl = (): string => {
@@ -59,6 +66,8 @@ export const fetchObservabilityStats = async (): Promise<ObservabilitySummary> =
 
   return response.json() as Promise<ObservabilitySummary>;
 };
+
+export const getObservabilityStreamUrl = (): string => `${getApiBaseUrl()}/observability/stream`;
 
 export const fetchObservabilityTrace = async (traceId: string): Promise<ObservabilityTrace> => {
   const response = await fetch(`${getApiBaseUrl()}/observability/traces/${encodeURIComponent(traceId)}`, {

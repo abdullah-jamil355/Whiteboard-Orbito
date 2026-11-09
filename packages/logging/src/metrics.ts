@@ -42,6 +42,16 @@ export type SystemHealthKpi = Readonly<{
   nodeVersion: string;
 }>;
 
+export type RealtimeActivity = Readonly<{
+  event: string;
+  timestamp: string;
+  sessionId: string;
+  role: string;
+  count?: number;
+}>;
+
+export type RealtimeActivityInput = Readonly<Omit<RealtimeActivity, "timestamp">>;
+
 export type ObservabilitySummary = Readonly<{
   totalRequests: number;
   requestsPerMinute: number;
@@ -53,6 +63,7 @@ export type ObservabilitySummary = Readonly<{
   system: SystemHealthKpi;
   endpoints: readonly RouteMetric[];
   recentTraces: readonly TraceRecord[];
+  recentRealtimeActivity: readonly RealtimeActivity[];
 }>;
 
 export type RecordRequestParams = Readonly<{
@@ -69,6 +80,8 @@ export type RecordRequestParams = Readonly<{
 export type MetricsRegistry = Readonly<{
   recordRequest: (params: RecordRequestParams) => void;
   recordTraceFailure: (traceId: string, failure: TraceFailure) => void;
+  recordRealtimeActivity: (activity: RealtimeActivityInput) => void;
+  subscribe: (listener: () => void) => () => void;
   findTrace: (traceId: string) => TraceRecord | undefined;
   getSummary: () => ObservabilitySummary;
   getPrometheusMetrics: () => Promise<string>;
@@ -132,6 +145,9 @@ export const createMetricsRegistry = ({
   });
 
   const recentTraces: TraceRecord[] = [];
+  const recentRealtimeActivity: RealtimeActivity[] = [];
+  const listeners = new Set<() => void>();
+  const notify = (): void => { for (const listener of listeners) listener(); };
   const pendingTraceFailures = new Map<string, TraceFailure>();
   const routeStatsMap = new Map<string, {
     method: string;
@@ -209,6 +225,7 @@ export const createMetricsRegistry = ({
         lastCalledAt: new Date()
       });
     }
+    notify();
   };
 
   const getSystemHealth = (): SystemHealthKpi => {
@@ -257,7 +274,8 @@ export const createMetricsRegistry = ({
       activeRooms: readActiveRooms(),
       system: getSystemHealth(),
       endpoints,
-      recentTraces: [...recentTraces]
+      recentTraces: [...recentTraces],
+      recentRealtimeActivity: [...recentRealtimeActivity]
     });
   };
 
@@ -267,11 +285,22 @@ export const createMetricsRegistry = ({
     cumulativeDurationMs = 0;
     routeStatsMap.clear();
     recentTraces.length = 0;
+    recentRealtimeActivity.length = 0;
     pendingTraceFailures.clear();
+    notify();
   };
 
   return Object.freeze({
     recordRequest,
+    recordRealtimeActivity: (activity: RealtimeActivityInput): void => {
+      recentRealtimeActivity.unshift(Object.freeze({ ...activity, timestamp: new Date().toISOString() }));
+      if (recentRealtimeActivity.length > 50) recentRealtimeActivity.pop();
+      notify();
+    },
+    subscribe: (listener: () => void): (() => void) => {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
     recordTraceFailure: (traceId: string, failure: TraceFailure): void => {
       pendingTraceFailures.set(traceId, failure);
     },

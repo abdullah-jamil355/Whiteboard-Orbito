@@ -15,7 +15,8 @@ export const Sparkline = ({
   fillId,
   height = 36
 }: SparklineProps): ReactElement => {
-  const points = data.length > 1 ? data : [0, 5, 2, 8, 4, 10];
+  const initialValue = data[0] ?? 0;
+  const points = data.length > 1 ? data : [initialValue, initialValue];
   const max = Math.max(...points, 1);
   const min = Math.min(...points, 0);
   const range = max - min || 1;

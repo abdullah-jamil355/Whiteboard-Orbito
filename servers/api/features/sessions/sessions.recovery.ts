@@ -5,6 +5,7 @@ import { WbBoardOperationModel } from "./sessions.operation.model.js";
 import { WbBoardSnapshotModel } from "./sessions.snapshot.model.js";
 import { applyBoardChanges } from "./sessions.collaboration.js";
 import { boardSnapshotSchema } from "./sessions.validation.js";
+import type { BoardEditChange, BoardSnapshot } from "./sessions.validation.js";
 
 export type SessionRecord = {
   _id: MongoObjectId;
@@ -42,6 +43,37 @@ export const validateStoredBoard = (value: unknown): BoardSession["board"] => {
   return result.data;
 };
 
+export const recoverBoardState = ({
+  recordBoard,
+  recordSequence,
+  snapshot,
+  operations
+}: Readonly<{
+  recordBoard: unknown;
+  recordSequence: number;
+  snapshot: Readonly<{ board: unknown; sequence: number }> | null;
+  operations: readonly Readonly<{ sequence: number; changes: readonly BoardEditChange[] }>[];
+}>): BoardSnapshot => {
+  if (!snapshot) {
+    if (recordSequence === 0) return validateStoredBoard(recordBoard);
+    throw new Error("No recoverable board snapshot exists.");
+  }
+
+  let board = validateStoredBoard(snapshot.board);
+  let expectedSequence = snapshot.sequence;
+  for (const operation of operations) {
+    if (operation.sequence !== expectedSequence + 1) {
+      throw new Error("Board operation sequence has a recovery gap.");
+    }
+    board = applyBoardChanges(board, operation.changes);
+    expectedSequence = operation.sequence;
+  }
+  if (expectedSequence !== recordSequence) {
+    throw new Error("Board operation history is incomplete.");
+  }
+  return board;
+};
+
 export const findSessionWithRecovery = async (sessionId: string): Promise<BoardSession | null> => {
   if (!isObjectIdString(sessionId)) return null;
   const record = await WbBoardSessionModel.findById(sessionId).exec();
@@ -55,13 +87,9 @@ export const findSessionWithRecovery = async (sessionId: string): Promise<BoardS
     .exec();
 
   if (!snapshot) {
-    if (record.sequence === 0) {
-      return mapSession({ ...record.toObject(), board: validateStoredBoard(record.board) });
-    }
-    throw new Error("No recoverable board snapshot exists.");
+    const board = recoverBoardState({ recordBoard: record.board, recordSequence: record.sequence, snapshot: null, operations: [] });
+    return mapSession({ ...record.toObject(), board });
   }
-
-  let board = validateStoredBoard(snapshot.board);
   const operations = await WbBoardOperationModel.find({
     sessionId: record._id,
     sequence: { $gt: snapshot.sequence, $lte: record.sequence }
@@ -69,17 +97,6 @@ export const findSessionWithRecovery = async (sessionId: string): Promise<BoardS
     .sort({ sequence: 1 })
     .lean()
     .exec();
-
-  let expectedSequence = snapshot.sequence;
-  for (const operation of operations) {
-    if (operation.sequence !== expectedSequence + 1) {
-      throw new Error("Board operation sequence has a recovery gap.");
-    }
-    board = applyBoardChanges(board, operation.changes);
-    expectedSequence = operation.sequence;
-  }
-  if (expectedSequence !== record.sequence) {
-    throw new Error("Board operation history is incomplete.");
-  }
+  const board = recoverBoardState({ recordBoard: record.board, recordSequence: record.sequence, snapshot, operations });
   return mapSession({ ...record.toObject(), board });
 };

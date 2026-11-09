@@ -7,6 +7,7 @@ import { Button } from "@workspace/ui/primitives/button";
 
 export type ObservabilityHeaderProps = Readonly<{
   isAutoRefresh: boolean;
+  streamConnected: boolean;
   loading: boolean;
   prometheusUrl: string;
   onRefresh: () => void;
@@ -16,6 +17,7 @@ export type ObservabilityHeaderProps = Readonly<{
 
 export const ObservabilityHeader = ({
   isAutoRefresh,
+  streamConnected,
   loading,
   prometheusUrl,
   onRefresh,
@@ -65,11 +67,11 @@ export const ObservabilityHeader = ({
           >
             {isAutoRefresh ? (
               <>
-                <Pause className="h-4 w-4 mr-1.5 text-cyan-400" /> Auto-refreshing (3s)
+                <Pause className="h-4 w-4 mr-1.5 text-cyan-400" /> {streamConnected ? "Live stream connected" : "Connecting to live stream…"}
               </>
             ) : (
               <>
-                <Play className="h-4 w-4 mr-1.5" /> Resume Auto-refresh
+                <Play className="h-4 w-4 mr-1.5" /> Resume Live Updates
               </>
             )}
           </Button>

@@ -1,7 +1,7 @@
 import type { Server as NodeHttpServer } from "node:http";
 import { Server } from "@hocuspocus/server";
 import type { Connection } from "@hocuspocus/server";
-import type { Logger } from "@workspace/logging";
+import type { Logger, MetricsRegistry } from "@workspace/logging";
 import type { ApiConfig } from "../../types/index.js";
 import type { IdentityService } from "../identity/public.js";
 import type { RealtimeInvitationRepository } from "../invitations/public.js";
@@ -14,6 +14,7 @@ type Dependencies = Readonly<{
   identity: IdentityService;
   invitations: RealtimeInvitationRepository;
   logger: Logger;
+  metrics: MetricsRegistry;
   sessions: RealtimeSessionRepository;
 }>;
 
@@ -24,13 +25,14 @@ const maximumCommandsPerWindow = 1_200;
 const maximumAwarenessUpdatesPerWindow = 2_400;
 const maximumAwarenessClientStatesPerUpdate = 30;
 
-export const createRealtimeServer = ({ config, logger, identity, sessions, invitations }: Dependencies) => {
+export const createRealtimeServer = ({ config, logger, identity, sessions, invitations, metrics }: Dependencies) => {
   if (config.realtimePort && !config.realtimeHost) throw new Error("Realtime host is required when realtime port is specified.");
   const timers = new Map<string, NodeJS.Timeout>();
   const connections = new Map<string, Connection<RealtimeContext>>();
   const commandWindows = new Map<string, { count: number; startedAt: number }>();
   const awarenessWindows = new Map<string, { count: number; startedAt: number }>();
   const awarenessAnomalyLogged = new Set<string>();
+  const awarenessLastRecordedAt = new Map<string, number>();
   const sessionQueues = new Map<string, Promise<unknown>>();
 
   const enqueueSession = <T>(sessionId: string, task: () => Promise<T>): Promise<T> => {
@@ -106,6 +108,7 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
     },
     connected: async ({ connection, context }) => {
       connections.set(context.connectionId, connection);
+      metrics.recordRealtimeActivity({ event: "participant.connected", sessionId: context.sessionId, role: context.role });
       try {
         const session = await sessions.findById(context.sessionId);
         if (session?.status === "active") {
@@ -135,6 +138,7 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
         enqueueSession,
         invitations,
         logger,
+        metrics,
         maximumCommandsPerWindow,
         sessions
       });
@@ -160,6 +164,10 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
           return Promise.resolve();
         }
         for (const [clientId, state] of states) states.set(clientId, sanitizeRealtimeAwarenessState(state, context.displayName, context.role));
+        if (states.size > 0 && now - (awarenessLastRecordedAt.get(context.connectionId) ?? 0) >= 1_000) {
+          awarenessLastRecordedAt.set(context.connectionId, now);
+          metrics.recordRealtimeActivity({ event: "presence.updated", sessionId: context.sessionId, role: context.role });
+        }
       }
       return Promise.resolve();
     },
@@ -171,12 +179,14 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
       commandWindows.delete(context.connectionId);
       awarenessWindows.delete(context.connectionId);
       awarenessAnomalyLogged.delete(context.connectionId);
+      awarenessLastRecordedAt.delete(context.connectionId);
       if (context.role === "owner" && ![...connections.values()].some((active) => active.context.sessionId === context.sessionId && active.context.role === "owner")) {
         const message = JSON.stringify({ type: "session:presence", ownerConnected: false });
         for (const participant of connections.values()) {
           if (participant.context.sessionId === context.sessionId) participant.sendStateless(message);
         }
       }
+      metrics.recordRealtimeActivity({ event: "participant.disconnected", sessionId: context.sessionId, role: context.role });
       await sessions.releaseConnection(context.sessionId, context.connectionId).catch((error: unknown) => {
         logger.error("Realtime seat release failed; lease expiry will recover the seat.", { sessionId: context.sessionId, error: error instanceof Error ? error.message : String(error) });
       });
@@ -194,6 +204,7 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
         commandWindows.delete(connectionId);
         awarenessWindows.delete(connectionId);
         awarenessAnomalyLogged.delete(connectionId);
+        awarenessLastRecordedAt.delete(connectionId);
         connections.delete(connectionId);
       }
     },
@@ -222,6 +233,7 @@ export const createRealtimeServer = ({ config, logger, identity, sessions, invit
         commandWindows.delete(connectionId);
         awarenessWindows.delete(connectionId);
         awarenessAnomalyLogged.delete(connectionId);
+        awarenessLastRecordedAt.delete(connectionId);
         connections.delete(connectionId);
       }
     },

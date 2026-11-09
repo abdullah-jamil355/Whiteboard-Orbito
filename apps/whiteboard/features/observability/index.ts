@@ -10,6 +10,7 @@ export {
   fetchObservabilityTrace,
   resetObservabilityStats,
   getPrometheusMetricsUrl,
+  getObservabilityStreamUrl,
   type ObservabilitySummary,
   type ObservabilityTrace,
   type ObservabilityEndpointStat

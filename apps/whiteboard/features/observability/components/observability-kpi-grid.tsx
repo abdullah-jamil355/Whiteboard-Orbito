@@ -35,7 +35,7 @@ export const ObservabilityKpiGrid = ({
           <span className="text-xs text-slate-400 font-medium">total requests</span>
         </div>
         <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
-          <span>Velocity:</span>
+          <span>Average since start/reset:</span>
           <span className="font-mono font-bold text-amber-300">
             {data ? <AnimatedCounter decimals={1} value={data.requestsPerMinute} /> : "0"} req/min
           </span>

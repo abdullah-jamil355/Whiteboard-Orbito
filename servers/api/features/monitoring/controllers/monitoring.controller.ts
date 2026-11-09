@@ -17,6 +17,43 @@ export const createMonitoringController = ({ metrics, findActiveRooms }: Depende
     res.status(HTTP_STATUS.ok).json({ ...summary, activeSessions: activeRooms.length, activeConnections, activeRooms });
   },
 
+  streamStats: (req: Request, res: Response): void => {
+    res.status(HTTP_STATUS.ok);
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-store, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    let sending = false;
+    let dirty = false;
+    const publish = async (): Promise<void> => {
+      dirty = true;
+      if (sending) return;
+      sending = true;
+      try {
+        while (dirty && !res.writableEnded) {
+          dirty = false;
+          const summary = metrics.getSummary();
+          const activeRooms = findActiveRooms
+            ? await findActiveRooms().catch(() => summary.activeRooms)
+            : summary.activeRooms;
+          const activeConnections = activeRooms.reduce((total, room) => total + room.connections, 0);
+          res.write(`event: stats\ndata: ${JSON.stringify({ ...summary, activeSessions: activeRooms.length, activeConnections, activeRooms })}\n\n`);
+        }
+      } finally {
+        sending = false;
+      }
+    };
+    const unsubscribe = metrics.subscribe(() => { void publish(); });
+    const heartbeat = setInterval(() => { void publish(); }, 1_000);
+    void publish();
+    res.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
+  },
+
   getTrace: (req: Request<{ traceId: string }>, res: Response): void => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     const { traceId } = req.params;

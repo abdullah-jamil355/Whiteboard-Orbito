@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, type ReactElement } from "react";
 import { AlertTriangle } from "lucide-react";
 import {
   fetchObservabilityStats,
+  getObservabilityStreamUrl,
   resetObservabilityStats,
   getPrometheusMetricsUrl,
   ObservabilityEndpointsTable,
@@ -20,12 +21,13 @@ export default function ObservabilityDashboardPage(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
+  const [streamConnected, setStreamConnected] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
   // Sparkline history rolling windows
-  const [throughputHistory, setThroughputHistory] = useState<readonly number[]>([4, 8, 6, 12, 9, 16, 14, 20]);
-  const [latencyHistory, setLatencyHistory] = useState<readonly number[]>([45, 62, 55, 48, 70, 64, 52, 58]);
-  const [roomHistory, setRoomHistory] = useState<readonly number[]>([0, 0, 0, 0, 0, 0]);
+  const [throughputHistory, setThroughputHistory] = useState<readonly number[]>([]);
+  const [latencyHistory, setLatencyHistory] = useState<readonly number[]>([]);
+  const [roomHistory, setRoomHistory] = useState<readonly number[]>([]);
 
   const loadStats = useCallback(async (): Promise<void> => {
     try {
@@ -62,10 +64,37 @@ export default function ObservabilityDashboardPage(): ReactElement {
 
   useEffect(() => {
     if (!isAutoRefresh) return;
-    const interval = setInterval(() => {
-      void loadStats();
-    }, 3000);
-    return () => clearInterval(interval);
+    const source = new EventSource(getObservabilityStreamUrl());
+    let fallback: ReturnType<typeof setInterval> | undefined;
+    const setStreamData = (event: MessageEvent<string>): void => {
+      try {
+        const stats = JSON.parse(event.data) as ObservabilitySummary;
+        setData(stats);
+        setError(null);
+        setLoading(false);
+        setLastRefreshed(new Date());
+        setThroughputHistory((prev) => [...prev.slice(-12), stats.requestsPerMinute]);
+        setLatencyHistory((prev) => [...prev.slice(-12), stats.averageLatencyMs]);
+        setRoomHistory((prev) => [...prev.slice(-12), stats.activeSessions]);
+      } catch {
+        setError("Observability stream returned invalid data.");
+      }
+    };
+    source.addEventListener("stats", setStreamData as EventListener);
+    source.onopen = () => {
+      setStreamConnected(true);
+      if (fallback) clearInterval(fallback);
+      fallback = undefined;
+    };
+    source.onerror = () => {
+      setStreamConnected(false);
+      if (!fallback) fallback = setInterval(() => { void loadStats(); }, 1000);
+    };
+    return () => {
+      setStreamConnected(false);
+      source.close();
+      if (fallback) clearInterval(fallback);
+    };
   }, [isAutoRefresh, loadStats]);
 
   const prometheusUrl = getPrometheusMetricsUrl();
@@ -82,6 +111,7 @@ export default function ObservabilityDashboardPage(): ReactElement {
       <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 z-10">
         <ObservabilityHeader
           isAutoRefresh={isAutoRefresh}
+          streamConnected={streamConnected}
           loading={loading}
           onRefresh={() => void loadStats()}
           onReset={() => void handleReset()}
@@ -133,6 +163,24 @@ export default function ObservabilityDashboardPage(): ReactElement {
             system={data.system}
           />
         )}
+
+        <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E1526]/70 shadow-xl backdrop-blur-xl">
+          <div className="border-b border-white/[0.08] px-5 py-4">
+            <h2 className="text-sm font-semibold text-white">Live user activity</h2>
+            <p className="mt-1 text-xs text-slate-400">Accepted board edits, undo/redo, participant connections, and presence updates. Board content and cursor coordinates are not recorded.</p>
+          </div>
+          {data?.recentRealtimeActivity.length ? (
+            <ul className="divide-y divide-white/[0.06]">
+              {data.recentRealtimeActivity.slice(0, 20).map((activity, index) => (
+                <li className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-xs" key={`${activity.timestamp}-${activity.event}-${index}`}>
+                  <span className="font-medium text-slate-200">{activity.event.replaceAll(".", " ")}{activity.count ? ` · ${String(activity.count)} ${activity.count === 1 ? "change" : "changes"}` : ""}</span>
+                  <span className="font-mono text-slate-400">{activity.role} · {activity.sessionId}</span>
+                  <time className="text-slate-500">{new Date(activity.timestamp).toLocaleTimeString()}</time>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="px-5 py-6 text-sm text-slate-400">No realtime user activity has been recorded yet.</p>}
+        </section>
 
         <ObservabilityEndpointsTable
           endpoints={data ? data.endpoints : []}

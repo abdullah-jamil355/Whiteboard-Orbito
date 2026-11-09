@@ -1,6 +1,6 @@
 import express, { type Express } from "express";
 import { randomBytes } from "node:crypto";
-import { createHttpLogger, createMetricsRegistry, createTraceMiddleware, type Logger } from "@workspace/logging";
+import { createHttpLogger, createMetricsRegistry, createTraceMiddleware, type Logger, type MetricsRegistry } from "@workspace/logging";
 import type { ApiConfig } from "../types/index.js";
 import { createBrevoHttpEmailSender, createGmailSmtpEmailSender } from "../integrations/index.js";
 import { apiRuntime } from "../constants/index.js";
@@ -22,6 +22,7 @@ import { createApiRateLimitMiddleware, createCorsMiddleware, createErrorHandler,
 type AppDependencies = Readonly<{
   config: ApiConfig;
   logger: Logger;
+  metrics?: MetricsRegistry;
   closeSessionConnections?: (sessionId: string) => void;
   closeMemberConnections?: (sessionId: string, identityId: string) => void;
   isMemberConnected?: (sessionId: string, identityId: string) => boolean;
@@ -33,6 +34,7 @@ type AppDependencies = Readonly<{
 export const createApp = ({
   config,
   logger,
+  metrics: suppliedMetrics,
   closeSessionConnections,
   closeMemberConnections,
   isMemberConnected,
@@ -43,7 +45,7 @@ export const createApp = ({
   const app = express();
   app.disable("x-powered-by");
   if (config.apiTrustProxyHops !== undefined) app.set("trust proxy", config.apiTrustProxyHops);
-  const metrics = createMetricsRegistry({
+  const metrics = suppliedMetrics ?? createMetricsRegistry({
     ...(getActiveRooms ? { getActiveRooms } : {}),
     ...(getActiveSessionsCount ? { getActiveSessionsCount } : {}),
     ...(getActiveConnectionsCount ? { getActiveConnectionsCount } : {})

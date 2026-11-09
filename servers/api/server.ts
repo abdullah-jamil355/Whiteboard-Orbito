@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
-import { createLogger } from "@workspace/logging";
+import { createLogger, createMetricsRegistry } from "@workspace/logging";
 import { createApp, createServer, createShutdown } from "./bootstrap/index.js";
 import { createApiConfig, readApiEnvironment } from "./config/index.js";
 import { apiRuntime } from "./constants/index.js";
@@ -23,16 +23,23 @@ const database = createMongoDbIntegration({
   logger,
   ...(config.mongodbUri ? { uri: config.mongodbUri } : {})
 });
-const realtime = config.mongodbUri
+let realtime: ReturnType<typeof createRealtimeServer> | null = null;
+const metrics = createMetricsRegistry({
+  getActiveRooms: () => realtime?.getActiveRooms() ?? [],
+  getActiveSessionsCount: () => realtime?.getActiveSessionsCount() ?? 0,
+  getActiveConnectionsCount: () => realtime?.getActiveConnectionsCount() ?? 0
+});
+realtime = config.mongodbUri
   ? createRealtimeServer({
     config,
     logger,
+    metrics,
     identity: createIdentityService({ repository: createIdentityRepository(), mailer: unavailableIdentityMailer, webOrigin: config.webOrigin, rateLimitKey: config.identityRateLimitKey ?? randomBytes(32).toString("hex") }),
     sessions: createSessionRepository(),
     invitations: createInvitationRepository()
   })
   : null;
-const app = createApp({ config, logger, ...(realtime ? {
+const app = createApp({ config, logger, metrics, ...(realtime ? {
   closeSessionConnections: realtime.closeSessionConnections,
   closeMemberConnections: realtime.closeMemberConnections,
   isMemberConnected: realtime.isMemberConnected,

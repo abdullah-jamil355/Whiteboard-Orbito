@@ -24,7 +24,7 @@ export const ObservabilitySystemTelemetry = ({
           </div>
           <div>
             <h2 className="text-base font-bold text-white tracking-tight">Node.js Runtime & Memory Telemetry</h2>
-            <p className="text-xs text-slate-400">V8 Heap allocation, physical resident set & engine state</p>
+            <p className="text-xs text-slate-400">Node process memory and runtime details</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap text-xs text-slate-400">
@@ -57,9 +57,7 @@ export const ObservabilitySystemTelemetry = ({
               style={{ width: `${Math.min(100, system.usagePercent)}%` }}
             />
           </div>
-          <p className="text-[11px] text-slate-500">
-            <AnimatedCounter value={system.usagePercent} />% of allocated V8 heap boundary
-          </p>
+          <p className="text-[11px] text-slate-500">Used compared with the heap V8 has currently allocated; this is not the process memory limit.</p>
         </div>
 
         {/* RSS Progress */}
@@ -78,9 +76,7 @@ export const ObservabilitySystemTelemetry = ({
               style={{ width: `${Math.min(100, Math.round((system.rssMb / 512) * 100))}%` }}
             />
           </div>
-          <p className="text-[11px] text-slate-500">
-            Total physical RAM utilized by current process
-          </p>
+          <p className="text-[11px] text-slate-500">Resident RAM used by this Node process. Bar is scaled to a 512 MB reference.</p>
         </div>
 
         {/* Engine State */}
@@ -91,7 +87,7 @@ export const ObservabilitySystemTelemetry = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
             </span>
-            <span className="text-sm font-bold text-emerald-400">Express 5 + Hocuspocus Normal</span>
+            <span className="text-sm font-bold text-emerald-400">Process metrics available</span>
           </div>
         </div>
       </div>
